@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "family-tree-app"
+version = "1.0"
+description = "A simple family tree app"
+readme = "README.md"
+authors = ["Daniel Schmidt"]
+repository = "https://github.com/danieleschmidt/family_tree_app"
+
+[tool.poetry.dependencies]
+python = ">=3.8"
+Django = ">=4.1.6"
+django-bootstrap4 = "==22.3"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
