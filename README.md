@@ -1,9 +1,5 @@
 # Family Tree App
 A Family Tree Web-Application written in Django. 
-This app is buit on Yehor Smoliakov's Logging Page project, 
-located here: https://github.com/egorsmkv/simple-django-login-and-register
-
-
 
 ## Screenshots
 ### User View
