@@ -37,7 +37,6 @@ class Location(models.Model):
     pass
 
 
-
 class Person(models.Model):
     """
 
@@ -70,3 +69,7 @@ class Person(models.Model):
 
     def __str__(self):
         return self.text
+
+
+class TestClass(models.Model):
+    pass
