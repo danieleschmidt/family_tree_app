@@ -37,7 +37,6 @@ class Location(models.Model):
     pass
 
 
-
 class Person(models.Model):
     """
 
