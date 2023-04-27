@@ -1,0 +1,4 @@
+opencage
+django-taggit
+django-tinymce
+Pillow
