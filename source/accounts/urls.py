@@ -4,7 +4,9 @@ from .views import (
     LogInView, ResendActivationCodeView, RemindUsernameView, SignUpView, ActivateView, LogOutView,
     ChangeEmailView, ChangeEmailActivateView, ChangeProfileView, ChangePasswordView,
     RestorePasswordView, RestorePasswordDoneView, RestorePasswordConfirmView,
+    FamilyTreeManagementView, FamilyTreeInvitationView, FamilyTreeView, FamilyMemberView, CloudStorageView,
 )
+
 
 app_name = 'accounts'
 
@@ -27,4 +29,10 @@ urlpatterns = [
     path('change/password/', ChangePasswordView.as_view(), name='change_password'),
     path('change/email/', ChangeEmailView.as_view(), name='change_email'),
     path('change/email/<code>/', ChangeEmailActivateView.as_view(), name='change_email_activation'),
+
+    path('family-tree-management/', FamilyTreeManagementView.as_view(), name='family_tree_management'),
+    path('family-tree-invitation/', FamilyTreeInvitationView.as_view(), name='family_tree_invitation'),
+    path('family-tree/', FamilyTreeView.as_view(), name='family_tree'),
+    path('family-member/', FamilyMemberView.as_view(), name='family_member'),
+    path('cloud-storage/', CloudStorageView.as_view(), name='cloud_storage'),
 ]
