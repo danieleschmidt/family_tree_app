@@ -38,7 +38,7 @@ If you need dynamic URLs with the language code, check out https://github.com/eg
 ### Clone the project
 
 ```bash
-git clone https://github.com/danieleschmidt/family_tree_app
+git clone https://github.com/danieleschmidt/family_tree_app.git
 cd family_tree_app
 ```
 
