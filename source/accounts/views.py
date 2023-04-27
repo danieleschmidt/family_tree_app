@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from django.contrib import messages
 from django.contrib.auth import login, authenticate, REDIRECT_FIELD_NAME
 from django.contrib.auth.tokens import default_token_generator
@@ -326,6 +327,48 @@ class RestorePasswordConfirmView(BasePasswordResetConfirmView):
 class RestorePasswordDoneView(BasePasswordResetDoneView):
     template_name = 'accounts/restore_password_done.html'
 
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name)
 
-class LogOutView(LoginRequiredMixin, BaseLogoutView):
+
+class LogOutView(LoginRequiredMixin, View):
     template_name = 'accounts/log_out.html'
+
+    def get(self, request):
+        logout(request)
+        return render(request, self.template_name)
+
+
+class FamilyTreeManagementView(LoginRequiredMixin, View):
+    template_name = 'accounts/family_tree_management.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
+
+
+class FamilyTreeInvitationView(LoginRequiredMixin, View):
+    template_name = 'accounts/family_tree_invitation.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
+
+
+class FamilyTreeView(LoginRequiredMixin, View):
+    template_name = 'accounts/family_tree.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
+
+
+class FamilyMemberView(LoginRequiredMixin, View):
+    template_name = 'accounts/family_member.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
+
+
+class CloudStorageView(LoginRequiredMixin, View):
+    template_name = 'accounts/cloud_storage.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
