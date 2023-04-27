@@ -373,6 +373,3 @@ class CloudStorageView(LoginRequiredMixin, View):
     def get(self, request):
         return render(request, self.template_name)
 
-
-def home_view(request):
-    return render(request, 'home.html')
