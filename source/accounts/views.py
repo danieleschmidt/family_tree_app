@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib import messages
-from django.contrib.auth import login, authenticate, REDIRECT_FIELD_NAME
+from django.contrib.auth import login, authenticate, REDIRECT_FIELD_NAME, logout
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
@@ -29,6 +29,7 @@ from .forms import (
     ResendActivationCodeForm, ResendActivationCodeViaEmailForm, ChangeProfileForm, ChangeEmailForm,
 )
 from .models import Activation
+from .forms import InvitationForm
 
 
 class GuestOnlyView(View):
@@ -347,12 +348,26 @@ class FamilyTreeManagementView(LoginRequiredMixin, View):
 
 
 class FamilyTreeInvitationView(LoginRequiredMixin, View):
+    form_class = InvitationForm
+    template_name = 'accounts/family_tree_invitation.html'
+    success_template_name = 'accounts/invite_sent.html'
+
+    def get(self, request, *args, **kwargs):
+        form = self.form_class()
+        return render(request, self.template_name, {'form': form})
+
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
+        if form.is_valid():
+            form.send_invite()
+            return render(request, self.success_template_name)
+        return render(request, self.template_name, {'form': form})
+'''
     template_name = 'accounts/family_tree_invitation.html'
 
     def get(self, request):
         return render(request, self.template_name)
-
-
+'''
 class FamilyTreeView(LoginRequiredMixin, View):
     template_name = 'accounts/family_tree.html'
 
