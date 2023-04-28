@@ -7,6 +7,13 @@
 
     <h4>{% trans 'Family Tree Invitation' %}</h4>
 
+    <h1>Invite someone to join our family tree!</h1>
+    <form method="post">
+      {% csrf_token %}
+      <!--{{ form.as_p }}--->
+        {% bootstrap_form form %}
+
+      <button type="submit">Send Invite</button>
     <!-- Add your form or content here -->
 
 {% endblock %}
