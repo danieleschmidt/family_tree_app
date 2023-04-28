@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
+from django.core.mail import send_mail
 
 class UserCacheMixin:
     user_cache = None
@@ -215,3 +216,23 @@ class ChangeEmailForm(forms.Form):
 
 class RemindUsernameForm(EmailForm):
     pass
+
+
+class InvitationForm(forms.Form):
+    recipient_email = forms.EmailField(label='Recipient Email')
+    sender_name = forms.CharField(label='Your Name')
+    message = forms.CharField(widget=forms.Textarea, label='Message')
+
+    def send_invite(self):
+        recipient_email = self.cleaned_data['recipient_email']
+        sender_name = self.cleaned_data['sender_name']
+        message = self.cleaned_data['message']
+
+        send_mail(
+            subject=f'{sender_name} has invited you to join our family tree',
+            message=message,
+            from_email='noreply@example.com',
+            recipient_list=[recipient_email],
+            fail_silently=False,
+        )
+
