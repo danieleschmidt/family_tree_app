@@ -5,15 +5,12 @@
 
 {% block content %}
 
-    <h4>{% trans 'Family Tree Invitation' %}</h4>
-
-    <h1>Invite someone to join our family tree!</h1>
+    <h4>{% trans 'Invite someone to join our family tree!' %}</h4>
+    <p><br> Sending invite from <b>{{ request.user.username }}</b><br><br></p>
     <form method="post">
       {% csrf_token %}
-      <!--{{ form.as_p }}--->
         {% bootstrap_form form %}
 
       <button type="submit">Send Invite</button>
-    <!-- Add your form or content here -->
 
 {% endblock %}
