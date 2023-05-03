@@ -11,6 +11,9 @@ from django.utils.translation import gettext_lazy as _
 
 from django.core.mail import send_mail
 
+from .models import Person
+
+
 class UserCacheMixin:
     user_cache = None
 
@@ -236,3 +239,26 @@ class InvitationForm(forms.Form):
             fail_silently=False,
         )
 
+
+class AddFamilyMemberForm(forms.ModelForm):
+    class Meta:
+        model = Person
+        fields = [
+            'first_name', 'middle_name', 'last_name', 'gender', 'birthdate', 'deathdate',
+            'profile_photo', 'father', 'mother', 'spouse', 'email', 'phone', 'address',
+            'bio', 'personal_storage'
+        ]
+        widgets = {
+            'birthdate': forms.DateInput(attrs={'type': 'date'}),
+            'deathdate': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['father'].queryset = Person.objects.all()
+        self.fields['mother'].queryset = Person.objects.all()
+        self.fields['spouse'].queryset = Person.objects.all()
+
+        self.fields['father'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
+        self.fields['mother'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
+        self.fields['spouse'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
