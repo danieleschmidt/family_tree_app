@@ -1,0 +1,23 @@
+The app's required specifications are the following:
+
+- Only super admin or assigned admin can approve member account
+- Super admin can start new family tree
+- Super admin can assign admin
+- Assigned admin can create members belong to their family
+- Any potential member may fill out self-registration form and request to join
+- Member request can be approved by admin
+- Admin determines where the member belongs in the tree at the time ofapproval
+- Members can edit their own record
+- Each member will have the following fields: ID, First name, middle name, last name, Gender (M/F/O), Profile photo, Father ID, Mother ID, Spouse ID, Email address, Contact phone number,  Address, Short bio, URL for personal cloud storage
+-Query capability by each member. For this, members need to search a target member (can be themselves) first, then:
+- Find immediate family members (parents, self, spouse, children and their family if married)
+- Find ancestors (from a member’s viewpoint). Must select father side or mother side,and number of generations. 
+- Find descendants (from a member’s viewpoint)
+- Find siblings (from a member’s viewpoint). 
+- Sub query or nested query may be needed.
+- Find all first cousins (father side and mother side)
+- Cloud based storage for individual documents and multimedia files
+- Limited cloud storage can be assigned upon membership
+- Members can see shared contents of others
+- Members can make their contents sharable
+-Members can add/delete/update their own files
