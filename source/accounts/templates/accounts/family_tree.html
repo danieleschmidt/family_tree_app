@@ -1,12 +1,17 @@
-{% extends 'layouts/default/page.html' %}
+{% load plotly_dash %}
 
-{% load bootstrap4 %}
-{% load i18n %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Family Tree</title>
+    {% plotly_header %}
+</head>
+<body>
 
-{% block content %}
+<h1>Family Tree</h1>
+{% plotly_app name="family_tree" %}
 
-    <h4>{% trans 'Family Tree' %}</h4>
+{% plotly_footer %}
 
-    <!-- Add your form or content here -->
-
-{% endblock %}
+</body>
+</html>
