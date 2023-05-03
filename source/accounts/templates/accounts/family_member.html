@@ -5,8 +5,28 @@
 
 {% block content %}
 
-    <h4>{% trans 'Family Member' %}</h4>
-
-    <!-- Add your form or content here -->
+<h1>{{ person.first_name }} {{ person.middle_name }} {{ person.last_name }}</h1>
+<p>Gender: {{ person.get_gender_display }}</p>
+<p>Birthdate: {{ person.birthdate|date:"F d, Y" }}</p>
+{% if person.deathdate %}
+<p>Deathdate: {{ person.deathdate|date:"F d, Y" }}</p>
+{% endif %}
+{% if person.profile_photo %}
+<img src="{{ person.profile_photo.url }}" alt="{{ person.first_name }}'s Profile Photo">
+{% endif %}
+<p>Father: {{ person.father }}</p>
+<p>Mother: {{ person.mother }}</p>
+<p>Spouse: {{ person.spouse }}</p>
+<p>Email: {{ person.email }}</p>
+<p>Phone: {{ person.phone }}</p>
+{% if person.address %}
+<p>Address: {{ person.address }}</p>
+{% endif %}
+{% if person.bio %}
+<p>Bio: {{ person.bio }}</p>
+{% endif %}
+{% if person.personal_storage %}
+<p>Personal Storage: <a href="{{ person.personal_storage }}" target="_blank">Link</a></p>
+{% endif %}
 
 {% endblock %}
