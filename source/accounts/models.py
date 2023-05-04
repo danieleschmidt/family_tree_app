@@ -129,6 +129,10 @@ class Person(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.middle_name or ''} {self.last_name}".strip()
+
 
 class PhotoLocation(models.Model):
     person = models.ForeignKey(Person, on_delete=models.CASCADE)

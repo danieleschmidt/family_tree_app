@@ -1,5 +1,6 @@
 from django.urls import path, include
 from django_plotly_dash.views import add_to_session
+from django.contrib import admin
 
 from .views import (
     LogInView, ResendActivationCodeView, RemindUsernameView, SignUpView, ActivateView, LogOutView,
@@ -42,4 +43,6 @@ urlpatterns = [
     path('django_plotly_dash/', include('django_plotly_dash.urls')),
     path('state/', add_to_session, name="session_state"),
     path('family_tree/', family_tree, name='family_tree'),
+    path('admin/', admin.site.urls),
+
 ]
