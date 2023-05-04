@@ -5,15 +5,11 @@
 
 {% block content %}
 
-    <h4>{% trans 'Create an Account' %}</h4>
-
-    <form method="post">
-
+<h1>Add Family Member</h1>
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {% bootstrap_form form %}
-
-        <button class="btn btn-success">{% trans 'Create' %}</button>
-
+        <button type="submit">Add Family Member</button>
     </form>
 
 {% endblock %}

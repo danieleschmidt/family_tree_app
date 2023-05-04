@@ -126,6 +126,9 @@ class Person(models.Model):
     bio = models.TextField(blank=True, null=True)
     personal_storage = models.URLField(blank=True, null=True)
 
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
 
 class PhotoLocation(models.Model):
     person = models.ForeignKey(Person, on_delete=models.CASCADE)
@@ -161,11 +164,11 @@ class UserGroupRole(models.Model):
     role_name = models.CharField(max_length=50)
 
 
-class User(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    permission_role = models.ForeignKey(UserPermissionRole, on_delete=models.CASCADE)
-    user_role = models.ForeignKey(UserRole, on_delete=models.CASCADE)
-    user_group_role = models.ForeignKey(UserGroupRole, on_delete=models.CASCADE)
+# class User(models.Model):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     permission_role = models.ForeignKey(UserPermissionRole, on_delete=models.CASCADE)
+#     user_role = models.ForeignKey(UserRole, on_delete=models.CASCADE)
+#     user_group_role = models.ForeignKey(UserGroupRole, on_delete=models.CASCADE)
 
 
 class Activation(models.Model):

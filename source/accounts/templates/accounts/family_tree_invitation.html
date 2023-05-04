@@ -1,0 +1,16 @@
+{% extends 'layouts/default/page.html' %}
+
+{% load bootstrap4 %}
+{% load i18n %}
+
+{% block content %}
+
+    <h4>{% trans 'Invite someone to join our family tree!' %}</h4>
+    <p><br> Sending invite from <b>{{ request.user.username }}</b><br><br></p>
+    <form method="post">
+      {% csrf_token %}
+        {% bootstrap_form form %}
+
+      <button type="submit">Send Invite</button>
+
+{% endblock %}

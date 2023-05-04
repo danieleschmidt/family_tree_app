@@ -1,5 +1,6 @@
+from django.shortcuts import render
 from django.contrib import messages
-from django.contrib.auth import login, authenticate, REDIRECT_FIELD_NAME
+from django.contrib.auth import login, authenticate, REDIRECT_FIELD_NAME, logout
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
@@ -25,9 +26,10 @@ from .utils import (
 from .forms import (
     SignInViaUsernameForm, SignInViaEmailForm, SignInViaEmailOrUsernameForm, SignUpForm,
     RestorePasswordForm, RestorePasswordViaEmailOrUsernameForm, RemindUsernameForm,
-    ResendActivationCodeForm, ResendActivationCodeViaEmailForm, ChangeProfileForm, ChangeEmailForm,
+    ResendActivationCodeForm, ResendActivationCodeViaEmailForm, ChangeProfileForm, ChangeEmailForm, AddFamilyMemberForm
 )
-from .models import Activation
+from .models import Activation, Person
+from .forms import InvitationForm
 
 
 class GuestOnlyView(View):
@@ -326,6 +328,107 @@ class RestorePasswordConfirmView(BasePasswordResetConfirmView):
 class RestorePasswordDoneView(BasePasswordResetDoneView):
     template_name = 'accounts/restore_password_done.html'
 
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name)
 
-class LogOutView(LoginRequiredMixin, BaseLogoutView):
+
+class LogOutView(LoginRequiredMixin, View):
     template_name = 'accounts/log_out.html'
+
+    def get(self, request):
+        logout(request)
+        return render(request, self.template_name)
+
+
+class AddFamilyMemberView(View):
+    template_name = 'accounts/add_family_member.html'
+
+    def get(self, request, *args, **kwargs):
+        form = AddFamilyMemberForm()
+        context = {'form': form}
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        form = AddFamilyMemberForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('accounts:family_tree')
+        context = {'form': form}
+        return render(request, self.template_name, context)
+
+
+class FamilyTreeManagementView(LoginRequiredMixin, View):
+    template_name = 'accounts/family_tree_management.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
+
+
+class FamilyTreeInvitationView(LoginRequiredMixin, View):
+    form_class = InvitationForm
+    template_name = 'accounts/family_tree_invitation.html'
+    success_template_name = 'accounts/invite_sent.html'
+
+    def get(self, request, *args, **kwargs):
+        form = self.form_class()
+        return render(request, self.template_name, {'form': form})
+
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
+        if form.is_valid():
+            form.send_invite(request.user.username)
+            return render(request, self.success_template_name)
+        return render(request, self.template_name, {'form': form})
+
+
+class FamilyTreeView(LoginRequiredMixin, View):
+    template_name = 'accounts/family_tree.html'
+
+    def get(self, request):
+        # Fetch all family members
+        family_members = Person.objects.all()
+
+        # Convert family members and relationships to nodes and edges format
+        nodes, edges = self.family_members_to_visjs_data(family_members)
+
+        # Pass the nodes and edges data to the template
+        context = {'nodes': nodes, 'edges': edges}
+        return render(request, self.template_name, context)
+
+    @staticmethod
+    def family_members_to_visjs_data(family_members):
+        nodes = []
+        edges = []
+
+        for member in family_members:
+            # Add a node for each family member
+            nodes.append({'id': member.id, 'label': str(member)})
+
+            # Add edges for parents
+            if member.father:
+                edges.append({'from': member.father.id, 'to': member.id})
+            if member.mother:
+                edges.append({'from': member.mother.id, 'to': member.id})
+
+        return nodes, edges
+
+
+class FamilyMemberView(LoginRequiredMixin, View):
+    template_name = 'accounts/family_member.html'
+
+    def get(self, request, *args, **kwargs):
+        person_id = kwargs['person_id']
+        person = get_object_or_404(Person, pk=person_id)
+        context = {'person': person}
+        return render(request, self.template_name, context)
+
+
+class CloudStorageView(LoginRequiredMixin, View):
+    template_name = 'accounts/cloud_storage.html'
+
+    def get(self, request):
+        return render(request, self.template_name)
+
+
+def family_tree(request):
+    return render(request, 'your_app/family_tree.html', {})

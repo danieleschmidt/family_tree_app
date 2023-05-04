@@ -9,6 +9,10 @@ from django.utils import timezone
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
+from django.core.mail import send_mail
+
+from .models import Person
+
 
 class UserCacheMixin:
     user_cache = None
@@ -215,3 +219,46 @@ class ChangeEmailForm(forms.Form):
 
 class RemindUsernameForm(EmailForm):
     pass
+
+
+class InvitationForm(forms.Form):
+    recipient_email = forms.EmailField(label='Recipient Email')
+    #sender_name = forms.CharField(label='Your Name')
+    message = forms.CharField(widget=forms.Textarea, label='Message')
+
+    def send_invite(self, sender_name):
+        recipient_email = self.cleaned_data['recipient_email']
+        #sender_name = self.cleaned_data['sender_name']
+        message = self.cleaned_data['message']
+
+        send_mail(
+            subject=f'{sender_name} has invited you to join our family tree',
+            message=message,
+            from_email='invite@PyFamilyTree.me',
+            recipient_list=[recipient_email],
+            fail_silently=False,
+        )
+
+
+class AddFamilyMemberForm(forms.ModelForm):
+    class Meta:
+        model = Person
+        fields = [
+            'first_name', 'middle_name', 'last_name', 'gender', 'birthdate', 'deathdate',
+            'profile_photo', 'father', 'mother', 'spouse', 'email', 'phone', 'address',
+            'bio', 'personal_storage'
+        ]
+        widgets = {
+            'birthdate': forms.DateInput(attrs={'type': 'date'}),
+            'deathdate': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['father'].queryset = Person.objects.all()
+        self.fields['mother'].queryset = Person.objects.all()
+        self.fields['spouse'].queryset = Person.objects.all()
+
+        self.fields['father'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
+        self.fields['mother'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
+        self.fields['spouse'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
