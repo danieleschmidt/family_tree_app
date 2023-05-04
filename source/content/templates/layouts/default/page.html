@@ -43,6 +43,9 @@
                     </li>
                 {% endif %}
                 <li class="nav-item">
+                    <a class="nav-link" href="{% url 'accounts:family_tree_invitation' %}">{% trans 'Invite' %}</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="{% url 'accounts:change_password' %}">{% trans 'Change password' %}</a>
                 </li>
                 <li class="nav-item">

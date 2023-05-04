@@ -223,13 +223,25 @@ class RemindUsernameForm(EmailForm):
 
 class InvitationForm(forms.Form):
     recipient_email = forms.EmailField(label='Recipient Email')
-    #sender_name = forms.CharField(label='Your Name')
-    message = forms.CharField(widget=forms.Textarea, label='Message')
 
     def send_invite(self, sender_name):
         recipient_email = self.cleaned_data['recipient_email']
-        #sender_name = self.cleaned_data['sender_name']
-        message = self.cleaned_data['message']
+        join_url = 'http://127.0.0.1:8000/accounts/sign-up/'
+
+        message = f"""
+        Dear {recipient_email.split('@')[0]},
+
+        {sender_name} has invited you to join our family tree on PyFamilyTree.me.
+
+        Click the link below to join the family tree:
+
+        {join_url}
+
+        Looking forward to having you in our family tree!
+
+        Best regards,
+        The PyFamilyTree Team
+        """
 
         send_mail(
             subject=f'{sender_name} has invited you to join our family tree',
