@@ -30,7 +30,7 @@ INSTALLED_APPS = [
     # Application apps
     'main',
     'accounts',
-    'django_plotly_dash.apps.DjangoPlotlyDashConfig'
+    'django_plotly_dash.apps.DjangoPlotlyDashConfig',
 ]
 
 MIDDLEWARE = [

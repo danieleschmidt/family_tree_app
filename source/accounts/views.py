@@ -414,13 +414,11 @@ class FamilyTreeView(LoginRequiredMixin, View):
 
 
 class FamilyMemberView(LoginRequiredMixin, View):
-    template_name = 'accounts/family_member.html'
+    template_name = 'family_member.html'
 
-    def get(self, request, *args, **kwargs):
-        person_id = kwargs['person_id']
+    def get(self, request, person_id):
         person = get_object_or_404(Person, pk=person_id)
-        context = {'person': person}
-        return render(request, self.template_name, context)
+        return render(request, self.template_name, {'person': person})
 
 
 class CloudStorageView(LoginRequiredMixin, View):
