@@ -49,6 +49,8 @@ pip install poetry
 
 poetry install
 poetry shell
+
+pip install -r extra_requirements.txt
 ```
 
 ### Configure the settings (connection to the database, connection to an SMTP server, and other options)
