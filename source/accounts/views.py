@@ -19,6 +19,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic import View, FormView
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 
 from .utils import (
     send_activation_email, send_reset_password_email, send_forgotten_username_email, send_activation_change_email,
@@ -28,7 +29,7 @@ from .forms import (
     RestorePasswordForm, RestorePasswordViaEmailOrUsernameForm, RemindUsernameForm,
     ResendActivationCodeForm, ResendActivationCodeViaEmailForm, ChangeProfileForm, ChangeEmailForm, AddFamilyMemberForm
 )
-from .models import Activation, Person
+from .models import Activation, Person, FamilyTree
 from .forms import InvitationForm
 
 
@@ -340,7 +341,7 @@ class LogOutView(LoginRequiredMixin, View):
         return render(request, self.template_name)
 
 
-class AddFamilyMemberView(View):
+class AddFamilyMemberView(LoginRequiredMixin, View):
     template_name = 'accounts/add_family_member.html'
 
     def get(self, request, *args, **kwargs):
@@ -381,36 +382,79 @@ class FamilyTreeInvitationView(LoginRequiredMixin, View):
         return render(request, self.template_name, {'form': form})
 
 
+def get_family_tree_data(family_tree):
+    family_members = Person.objects.filter(family_tree=family_tree)
+
+    family_tree_data = []
+
+    for member in family_members:
+        family_tree_data.append({
+            "id": member.id,
+            "name": member.full_name(),
+            "gender": member.gender,
+            "birth_date": member.birth_date.isoformat(),
+            "death_date": member.death_date.isoformat() if member.death_date else None,
+            "father": member.father.id if member.father else None,
+            "mother": member.mother.id if member.mother else None,
+            "spouse": member.spouse.id if member.spouse else None
+        })
+
+    return json.dumps(family_tree_data)
+
+
 class FamilyTreeView(LoginRequiredMixin, View):
-    template_name = 'accounts/family_tree.html'
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        family_tree = FamilyTree.objects.get(super_admin=user)
+        family_members = Person.objects.filter(family_tree=family_tree)
+        family_tree_data = get_family_tree_data(family_tree)
 
-    def get(self, request):
-        # Fetch all family members
-        family_members = Person.objects.all()
+        context = {
+            'family_tree': family_tree,
+            'family_members': family_members,
+            'family_tree_data': family_tree_data
+        }
 
-        # Convert family members and relationships to nodes and edges format
-        nodes, edges = self.family_members_to_visjs_data(family_members)
+        return render(request, 'accounts/family_tree.html', context)
 
-        # Pass the nodes and edges data to the template
-        context = {'nodes': nodes, 'edges': edges}
-        return render(request, self.template_name, context)
 
-    @staticmethod
-    def family_members_to_visjs_data(family_members):
-        nodes = []
-        edges = []
+@login_required
+def family_tree_view(request):
+    root_family_members = Person.objects.filter(father=None, mother=None)
+    context = {'root_family_members': root_family_members}
+    return render(request, 'accounts/family_tree.html', context)
 
-        for member in family_members:
-            # Add a node for each family member
-            nodes.append({'id': member.id, 'label': str(member)})
 
-            # Add edges for parents
-            if member.father:
-                edges.append({'from': member.father.id, 'to': member.id})
-            if member.mother:
-                edges.append({'from': member.mother.id, 'to': member.id})
-
-        return nodes, edges
+# class FamilyTreeView(LoginRequiredMixin, View):
+#     template_name = 'accounts/family_tree.html'
+#
+#     def get(self, request):
+#         # Fetch all family members
+#         family_members = Person.objects.all()
+#
+#         # Convert family members and relationships to nodes and edges format
+#         nodes, edges = self.family_members_to_visjs_data(family_members)
+#
+#         # Pass the nodes and edges data to the template
+#         context = {'nodes': nodes, 'edges': edges}
+#         return render(request, self.template_name, context)
+#
+#     @staticmethod
+#     def family_members_to_visjs_data(family_members):
+#         nodes = []
+#         edges = []
+#
+#         for member in family_members:
+#             # Add a node for each family member
+#             nodes.append({'id': member.id, 'label': str(member)})
+#
+#             # Add edges for parents
+#             if member.father:
+#                 edges.append({'from': member.father.id, 'to': member.id})
+#             if member.mother:
+#                 edges.append({'from': member.mother.id, 'to': member.id})
+#
+#         return nodes, edges
 
 
 class FamilyMemberView(LoginRequiredMixin, View):
@@ -428,5 +472,26 @@ class CloudStorageView(LoginRequiredMixin, View):
         return render(request, self.template_name)
 
 
-def family_tree(request):
-    return render(request, 'your_app/family_tree.html', {})
+
+@login_required
+def send_invitation(request):
+    if request.method == 'POST':
+        family_tree_id = request.POST['family_tree_id']
+        recipient_email = request.POST['email']
+        # Add logic to send an email invitation here
+        messages.success(request, 'Invitation sent to {}'.format(recipient_email))
+        return redirect('user_dashboard')
+
+
+@login_required
+def user_dashboard(request):
+
+    user = request.user
+    person = Person.objects.filter(user=user).first()
+    family_tree = FamilyTree.objects.filter(super_admin=user).first()
+    context = {
+        'person': person,
+        'family_tree': family_tree,
+    }
+
+    return render(request, 'accounts/user_dashboard.html', context)

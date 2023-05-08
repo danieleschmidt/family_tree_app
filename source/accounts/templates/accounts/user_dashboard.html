@@ -1,0 +1,29 @@
+{% extends 'layouts/default/page.html' %}
+
+{% load bootstrap4 %}
+{% load i18n %}
+
+{% block content %}
+    <h1>User Dashboard</h1>
+
+    <h2>Personal Information</h2>
+    <p>Name: {{ person.first_name }} {{ person.last_name }}</p>
+    <p>Email: {{ user.email }}</p>
+
+    {% if family_tree %}
+        <h2>Family Tree</h2>
+        <a href="{% url 'accounts:family_tree_view' %}">{% trans "View Family Tree" %}</a>
+
+        <h2>Invite a New Member</h2>
+        <form method="post" action="{% url 'accounts:send_invitation' %}">
+            {% csrf_token %}
+            <label for="email">Email:</label>
+            <input type="email" name="email" required>
+            <input type="hidden" name="family_tree_id" value="{{ family_tree.id }}">
+            <button type="submit">Send Invitation</button>
+        </form>
+    {% else %}
+        <p>You don't have a family tree yet. <a href="{% url 'accounts:create_family_tree' %}">Create one</a>.</p>
+    {% endif %}
+
+{% endblock %}

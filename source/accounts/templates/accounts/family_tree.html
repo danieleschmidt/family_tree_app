@@ -1,17 +1,51 @@
-{% load plotly_dash %}
+{% extends 'layouts/default/page.html' %}
+
+{% load bootstrap4 %}
+{% load i18n %}
+{% load static %}
+
+{% block content %}
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Family Tree</title>
-    {% plotly_header %}
+    <link rel="stylesheet" href="{% static 'css/family_tree.css' %}">
 </head>
 <body>
-
-<h1>Family Tree</h1>
-{% plotly_app name="family_tree" %}
-
-{% plotly_footer %}
-
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h1>{% trans 'Family Tree' %}</h1>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <div class="family-tree">
+                    {% for member in root_family_members %}
+                        <div class="family-member">
+                            {{ member.full_name }}
+                            {% if member.children_as_father.all or member.children_as_mother.all %}
+                                <div class="children">
+                                    {% for child in member.children_as_father.all %}
+                                        <div class="family-member">
+                                            {{ child.full_name }}
+                                        </div>
+                                    {% endfor %}
+                                    {% for child in member.children_as_mother.all %}
+                                        <div class="family-member">
+                                            {{ child.full_name }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
+{% endblock %}

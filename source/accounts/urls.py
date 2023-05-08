@@ -7,7 +7,7 @@ from .views import (
     ChangeEmailView, ChangeEmailActivateView, ChangeProfileView, ChangePasswordView,
     RestorePasswordView, RestorePasswordDoneView, RestorePasswordConfirmView,
     FamilyTreeManagementView, FamilyTreeInvitationView, FamilyTreeView, FamilyMemberView, CloudStorageView,
-    AddFamilyMemberView, family_tree
+    AddFamilyMemberView, family_tree_view, user_dashboard, send_invitation
 )
 
 
@@ -35,14 +35,15 @@ urlpatterns = [
 
     path('family_tree_management/', FamilyTreeManagementView.as_view(), name='family_tree_management'),
     path('family_tree_invitation/', FamilyTreeInvitationView.as_view(), name='family_tree_invitation'),
-    path('family_tree/', FamilyTreeView.as_view(), name='family_tree'),
     path('add_family_member/', AddFamilyMemberView.as_view(), name='add_family_member'),
-    # path('family_member/', FamilyMemberView.as_view(), name='family_member'),
     path('family_member/<int:person_id>/', FamilyMemberView.as_view(), name='family_member'),
     path('cloud_storage/', CloudStorageView.as_view(), name='cloud_storage'),
     path('django_plotly_dash/', include('django_plotly_dash.urls')),
     path('state/', add_to_session, name="session_state"),
-    path('family_tree/', family_tree, name='family_tree'),
+    path('family_tree/', family_tree_view, name='family_tree'),
     path('admin/', admin.site.urls),
+    path('dashboard/', user_dashboard, name='user_dashboard'),
+    path('send-invitation/', send_invitation, name='send_invitation'),
+    path('family_tree/', FamilyTreeView.as_view(), name='family_tree_view'),
 
 ]
