@@ -1,17 +1,90 @@
-{% load plotly_dash %}
+{% extends 'layouts/default/page.html' %}
+
+{% load bootstrap4 %}
+{% load i18n %}
+{% load static %}
+
+{% block content %}
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Family Tree</title>
-    {% plotly_header %}
+    <link rel="stylesheet" href="{% static 'css/family_tree.css' %}">
+    <!-- Include Vis.js library -->
+    <script type="text/javascript" src="https://visjs.github.io/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style type="text/css">
+        #mynetwork {
+            width: 100%;
+            height: 800px;
+            border: 1px solid lightgray;
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <h1>{% trans 'Family Tree' %}</h1>
+                <h2>{{ family_tree.name }}</h2> <!-- Added Family Tree Name -->
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <div id="mynetwork"></div>
+            </div>
+        </div>
+    </div>
 
-<h1>Family Tree</h1>
-{% plotly_app name="family_tree" %}
+    <script type="text/javascript">
+        var nodes = new vis.DataSet({{ nodes|safe }});
+        var edges = new vis.DataSet({{ edges|safe }});
 
-{% plotly_footer %}
+        var container = document.getElementById('mynetwork');
+        var data = {
+            nodes: nodes,
+            edges: edges
+        };
+        var options = {
+            physics: {
+                stabilization: false,
+                barnesHut: {
+                    gravitationalConstant: -30000,
+                    springConstant: 0.04,
+                    springLength: 95
+                }
+            },
+            nodes: {
+                shape: 'box'
+            },
+            edges: {
+                smooth: {
+                    type: 'cubicBezier',
+                    forceDirection: 'horizontal',
+                    roundness: 0.4
+                }
+            },
+            layout: {
+                hierarchical: {
+                    direction: 'UD',
+                    sortMethod: 'directed',
+                    levelSeparation: 100,
+                    nodeSpacing: 150
+                }
+            }
+        };
+        var network = new vis.Network(container, data, options);
 
+        network.on("click", function (params) {
+            if (params.nodes.length > 0) {
+                // If a node was clicked, navigate to its URL
+                var nodeId = params.nodes[0];
+                window.location.href = '/accounts/person/' + nodeId;
+            }
+        });
+    </script>
 </body>
 </html>
+
+{% endblock %}

@@ -6,9 +6,9 @@ from .models import (EmailVerification, Country, Location, FamilyTree, Member, M
 
 
 class PersonAdmin(admin.ModelAdmin):
-    list_display = ('full_name', 'birthdate', 'deathdate', 'gender', 'email', 'phone', 'address')
+    list_display = ('full_name', 'birthdate', 'deathdate', 'gender', 'email', 'phone', 'address', 'user', 'family_tree')
     search_fields = ('first_name', 'last_name', 'email')
-    list_filter = ('gender',)
+    list_filter = ('gender', )
     ordering = ('last_name', 'first_name')
 
 

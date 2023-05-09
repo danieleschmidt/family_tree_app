@@ -1,0 +1,33 @@
+.family-tree {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.family-member {
+    padding: 20px;
+    margin: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    display: inline-block;
+    text-align: center;
+}
+
+.person {
+    font-weight: bold;
+}
+
+.children {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.profile-photo {
+    max-width: 50px;
+    max-height: 50px;
+    border-radius: 50%;
+    margin-top: 5px;
+}
