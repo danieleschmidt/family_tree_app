@@ -1,0 +1,23 @@
+{% extends 'layouts/default/page.html' %}
+
+{% load bootstrap4 %}
+{% load i18n %}
+
+{% block content %}
+    <h3>{{ person.full_name }}</h3>
+    {% if person.profile_photo %}
+    <p><img src="{{ person.profile_photo.url }}" alt="{{ person.full_name }}"></p>
+    {% endif %}
+    <p>Email: {{ person.user.email }}</p>
+    <p>First Name: {{ person.first_name }}</p>
+    <p>Last Name: {{ person.last_name }}</p>
+    <p>Gender: {{ person.gender }}</p>
+    <p>Birthdate: {{ person.birthdate }}</p>
+    {% if person.deathdate %}
+        <p>Death Date: {{ person.deathdate }}</p>
+    {% endif %}
+    <p>Phone: {{ person.phone }}</p>
+    <p>Address: {{ person.address }}</p>
+    <p>Bio: {{ person.bio }}</p>
+
+{% endblock %}

@@ -42,6 +42,34 @@
                         <a class="nav-link" href="{% url 'admin:login' %}">{% trans 'Django administration' %}</a>
                     </li>
                 {% endif %}
+                {% if user.is_authenticated %}
+                <li>
+                    <a class="nav-link" href="{% url 'accounts:user_dashboard' %}">{% trans 'User dashboard' %}</a>
+                </li>
+                {% endif %}
+                {% if user.is_authenticated %}
+                <li>
+                    <a class="nav-link" href="{% url 'accounts:family_tree_view' %}">{% trans 'Family tree' %}</a>
+                </li>
+                {% endif %}
+                {% if request.user.is_superuser %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'accounts:family_tree_management' %}">{% trans 'Family tree management' %}</a>
+                    </li>
+                {% endif %}
+
+                {% if user.is_authenticated %}
+                <li>
+                    <a class="nav-link" href="{% url 'accounts:family_tree_invitation' %}">{% trans 'Family tree invitation' %}</a>
+                </li>
+                {% endif %}
+                {% if user.is_authenticated %}
+                <li>
+                    <a class="nav-link" href="{% url 'accounts:add_family_member' %}">{% trans 'Add family member' %}</a>
+                </li>
+                {% endif %}
+
+
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'accounts:change_password' %}">{% trans 'Change password' %}</a>
                 </li>
