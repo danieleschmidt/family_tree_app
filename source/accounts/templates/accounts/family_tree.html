@@ -12,40 +12,79 @@
     <meta charset="UTF-8">
     <title>Family Tree</title>
     <link rel="stylesheet" href="{% static 'css/family_tree.css' %}">
+    <!-- Include Vis.js library -->
+    <script type="text/javascript" src="https://visjs.github.io/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style type="text/css">
+        #mynetwork {
+            width: 100%;
+            height: 800px;
+            border: 1px solid lightgray;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="row">
             <div class="col-12">
                 <h1>{% trans 'Family Tree' %}</h1>
+                <h2>{{ family_tree.name }}</h2> <!-- Added Family Tree Name -->
             </div>
         </div>
         <div class="row">
             <div class="col-12">
-                <div class="family-tree">
-                    {% for member in root_family_members %}
-                        <div class="family-member">
-                            {{ member.full_name }}
-                            {% if member.children_as_father.all or member.children_as_mother.all %}
-                                <div class="children">
-                                    {% for child in member.children_as_father.all %}
-                                        <div class="family-member">
-                                            {{ child.full_name }}
-                                        </div>
-                                    {% endfor %}
-                                    {% for child in member.children_as_mother.all %}
-                                        <div class="family-member">
-                                            {{ child.full_name }}
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
+                <div id="mynetwork"></div>
             </div>
         </div>
     </div>
+
+    <script type="text/javascript">
+        var nodes = new vis.DataSet({{ nodes|safe }});
+        var edges = new vis.DataSet({{ edges|safe }});
+
+        var container = document.getElementById('mynetwork');
+        var data = {
+            nodes: nodes,
+            edges: edges
+        };
+        var options = {
+            physics: {
+                stabilization: false,
+                barnesHut: {
+                    gravitationalConstant: -30000,
+                    springConstant: 0.04,
+                    springLength: 95
+                }
+            },
+            nodes: {
+                shape: 'box'
+            },
+            edges: {
+                smooth: {
+                    type: 'cubicBezier',
+                    forceDirection: 'horizontal',
+                    roundness: 0.4
+                }
+            },
+            layout: {
+                hierarchical: {
+                    direction: 'UD',
+                    sortMethod: 'directed',
+                    levelSeparation: 100,
+                    nodeSpacing: 150
+                }
+            }
+        };
+        var network = new vis.Network(container, data, options);
+
+        network.on("click", function (params) {
+            if (params.nodes.length > 0) {
+                // If a node was clicked, navigate to its URL
+                var nodeId = params.nodes[0];
+                window.location.href = '/accounts/person/' + nodeId;
+            }
+        });
+    </script>
 </body>
 </html>
+
 {% endblock %}

@@ -7,9 +7,25 @@
     <h1>User Dashboard</h1>
 
     <h2>Personal Information</h2>
-    <p>Name: {{ person.first_name }} {{ person.last_name }}</p>
+    <h3>Welcome, {{ user.username }}</h3>
+    {% if user.person.profile_photo %}
+    <p><img src="{{ user.person.profile_photo.url }}" alt="{{ user.person.full_name }}"></p>
+    {% endif %}
+    {% if user.person.personal_storage %}
+    <p>Personal Storage: <a href="{{ user.person.personal_storage }}">Link</a></p>
     <p>Email: {{ user.email }}</p>
+    <p>First Name: {{ user.person.first_name }}</p>
+    <p>Last Name: {{ user.person.last_name }}</p>
+    <p>Gender: {{ user.person.gender }}</p>
+    <p>Birthdate: {{ user.person.birthdate }}</p>
+    {% if user.person.deathdate %}
+        <p>Death Date: {{ user.person.deathdate }}</p>
+    {% endif %}
+    <p>Phone: {{ user.person.phone }}</p>
+    <p>Address: {{ user.person.address }}</p>
+    <p>Bio: {{ user.person.bio }}</p>
 
+    {% endif %}
     {% if family_tree %}
         <h2>Family Tree</h2>
         <a href="{% url 'accounts:family_tree_view' %}">{% trans "View Family Tree" %}</a>
