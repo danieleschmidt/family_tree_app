@@ -254,10 +254,14 @@ class AddFamilyMemberForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        # Fetch the family_tree from the keyword arguments, then delete it so it doesn't interfere with the super() call
+        self.family_tree = kwargs.pop('family_tree', None)
         super().__init__(*args, **kwargs)
-        self.fields['father'].queryset = Person.objects.all()
-        self.fields['mother'].queryset = Person.objects.all()
-        self.fields['spouse'].queryset = Person.objects.all()
+
+        if self.family_tree:
+            self.fields['father'].queryset = Person.objects.filter(family_tree=self.family_tree)
+            self.fields['mother'].queryset = Person.objects.filter(family_tree=self.family_tree)
+            self.fields['spouse'].queryset = Person.objects.filter(family_tree=self.family_tree)
 
         self.fields['father'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
         self.fields['mother'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
