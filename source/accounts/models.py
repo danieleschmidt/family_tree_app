@@ -18,6 +18,11 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils.timezone import now
 from django.contrib.sites.models import Site
+from django.urls import reverse
+from django.contrib.auth.models import AbstractUser, AbstractBaseUser, BaseUserManager, PermissionsMixin, Group, Permission
+from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 
 
 class EmailVerification(models.Model):
@@ -53,6 +58,14 @@ class FamilyTree(models.Model):
 
     def __str__(self):
         return self.name
+
+    def add_person(self, person):
+        """
+        Add a person to the family tree.
+        """
+        # Set the person's family tree to this family tree
+        person.family_tree = self
+        person.save()
 
 
 class Member(models.Model):
@@ -106,11 +119,13 @@ class RelationshipType(models.Model):
 
 
 class Person(models.Model):
-    first_name = models.CharField(max_length=50)
+    id = models.AutoField(primary_key=True)
+    first_name = models.CharField(max_length=50, blank=True, null=True)
     middle_name = models.CharField(max_length=50, blank=True, null=True)
-    last_name = models.CharField(max_length=50)
-    gender = models.CharField(max_length=1, choices=(('M', 'Male'), ('F', 'Female'), ('O', 'Other')))
-    birthdate = models.DateField()
+    last_name = models.CharField(max_length=50, blank=True, null=True)
+    gender = models.CharField(max_length=1, choices=(('M', 'Male'), ('F', 'Female'), ('O', 'Other')),
+                              blank=True, null=True)
+    birthdate = models.DateField(blank=True, null=True)
     deathdate = models.DateField(blank=True, null=True)
     profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
     father = models.ForeignKey('self', related_name='children_as_father', blank=True, null=True,
@@ -119,8 +134,8 @@ class Person(models.Model):
                                on_delete=models.SET_NULL)
     spouse = models.ForeignKey('self', related_name='spouse_as_person', blank=True, null=True,
                                on_delete=models.SET_NULL)
-    email = models.EmailField()
-    phone = models.CharField(max_length=20)
+    email = models.EmailField(default='', blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
     address = models.CharField(max_length=200, blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
     personal_storage = models.URLField(blank=True, null=True)
@@ -171,11 +186,45 @@ class UserGroupRole(models.Model):
     role_name = models.CharField(max_length=50)
 
 
-class User(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+class User(AbstractBaseUser, PermissionsMixin):
+    id = models.AutoField(primary_key=True)
+    email = models.EmailField(max_length=255, unique=True, null=False, blank=False, default='')
+    first_name = models.CharField(max_length=30, null=False, blank=False, default='')
+    last_name = models.CharField(max_length=30, null=False, blank=False, default='')
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
+    date_joined = models.DateTimeField(default=timezone.now)
+
+    password = models.CharField(_('password'), max_length=128, default='')
+
+    groups = models.ManyToManyField(
+        Group,
+        blank=True,
+        related_name='accounts_user_set',  # Add related_name
+        related_query_name='user',
+        verbose_name=_('groups'),
+        help_text=_('The groups this user belongs to. A user will get all permissions granted to each of their groups.'),
+    )
+
+    user_permissions = models.ManyToManyField(
+        Permission,
+        blank=True,
+        related_name='accounts_user_set',  # Add related_name
+        related_query_name='user',
+        verbose_name=_('user permissions'),
+        help_text=_('Specific permissions for this user.'),
+    )
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     permission_role = models.ForeignKey(UserPermissionRole, on_delete=models.CASCADE)
     user_role = models.ForeignKey(UserRole, on_delete=models.CASCADE)
     user_group_role = models.ForeignKey(UserGroupRole, on_delete=models.CASCADE)
+
+    def get_absolute_url(self):
+        # return reverse('accounts:dashboard', args=[str(self.id)])
+        return reverse('accounts:dashboard')
 
 
 class Activation(models.Model):
@@ -183,3 +232,9 @@ class Activation(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     code = models.CharField(max_length=20, unique=True)
     email = models.EmailField(blank=True)
+
+    @classmethod
+    def create(cls, user):
+        activation = cls(user=user)
+        activation.save()
+        return activation

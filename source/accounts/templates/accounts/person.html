@@ -4,11 +4,14 @@
 {% load i18n %}
 
 {% block content %}
-    <h3>{{ person.full_name }}</h3>
+<h3>{{ person.full_name }}</h3>
     {% if person.profile_photo %}
     <p><img src="{{ person.profile_photo.url }}" alt="{{ person.full_name }}"></p>
     {% endif %}
     <p>Email: {{ person.user.email }}</p>
+    {% if request.user == person.user %}
+        <a href="{% url 'accounts:edit_person_information' person.id %}">{% trans "Edit Information" %}</a>
+    {% endif %}
     <p>First Name: {{ person.first_name }}</p>
     <p>Last Name: {{ person.last_name }}</p>
     <p>Gender: {{ person.gender }}</p>

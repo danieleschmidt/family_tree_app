@@ -4,9 +4,20 @@
 {% load i18n %}
 
 {% block content %}
+    <h1>{% trans "Family Tree Management" %}</h1>
 
-    <h4>{% trans 'Family Tree Management' %}</h4>
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">{% trans "Family Tree Details" %}</h5>
+            <hr>
 
-    <!-- Add your form or content here -->
-
+            <form method="post">
+                {% csrf_token %}
+                {% bootstrap_form form %}
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
 {% endblock %}

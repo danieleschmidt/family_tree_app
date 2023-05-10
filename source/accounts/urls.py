@@ -7,7 +7,8 @@ from .views import (
     ChangeEmailView, ChangeEmailActivateView, ChangeProfileView, ChangePasswordView,
     RestorePasswordView, RestorePasswordDoneView, RestorePasswordConfirmView,
     FamilyTreeManagementView, FamilyTreeInvitationView, FamilyTreeView, PersonView, CloudStorageView,
-    AddFamilyMemberView, user_dashboard, send_invitation
+    AddFamilyMemberView, CreateFamilyTreeView, user_dashboard, send_invitation, edit_person_information,
+    person_detail
 )
 
 
@@ -45,5 +46,10 @@ urlpatterns = [
     path('state/', add_to_session, name="session_state"),
     path('admin/', admin.site.urls),
     path('dashboard/', user_dashboard, name='user_dashboard'),
+    path('create_family_tree/', CreateFamilyTreeView.as_view(), name='create_family_tree'),
     path('send-invitation/', send_invitation, name='send_invitation'),
+    path('edit_person_information/<int:person_id>/', edit_person_information, name='edit_person_information'),
+    path('person/<int:pk>/', person_detail, name='person_detail'),
+
+
 ]
