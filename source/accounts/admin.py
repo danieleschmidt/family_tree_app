@@ -12,22 +12,19 @@ class PersonAdmin(admin.ModelAdmin):
     ordering = ('last_name', 'first_name')
 
 
-admin.site.register(Person, PersonAdmin)
-admin.site.register(EmailVerification)
+class CountryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'country_code')
+    search_fields = ('name', 'country_code')
+    ordering = ('name',)
+
+
+admin.site.register(Person)
 admin.site.register(Country)
-admin.site.register(Location)
-admin.site.register(FamilyTree)
-admin.site.register(Member)
-admin.site.register(Media)
-admin.site.register(Event)
-admin.site.register(EventType)
-admin.site.register(Relationship)
-admin.site.register(RelationshipType)
-admin.site.register(PhotoLocation)
-admin.site.register(AdminAssignment)
-admin.site.register(FileTable)
-admin.site.register(UserPermissionRole)
-admin.site.register(UserPermission)
-admin.site.register(UserRole)
-admin.site.register(UserGroupRole)
-admin.site.register(Activation)
+
+models = [EmailVerification, Location, FamilyTree, Member, Media, Event,
+          EventType, Relationship, RelationshipType, PhotoLocation,
+          AdminAssignment, FileTable, UserPermissionRole, UserPermission,
+          UserRole, UserGroupRole, Activation]
+
+for model in models:
+    admin.site.register(model)

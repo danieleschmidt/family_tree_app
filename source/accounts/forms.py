@@ -11,7 +11,8 @@ from django.utils.translation import gettext_lazy as _
 
 from django.core.mail import send_mail
 
-from .models import Person
+from .models import Person, FamilyTree
+from django.contrib.auth import password_validation
 
 
 class UserCacheMixin:
@@ -116,20 +117,39 @@ class SignInViaEmailOrUsernameForm(SignIn, EmailOrUsernameForm):
 
 
 class SignUpForm(UserCreationForm):
+    email = forms.EmailField(label=_('Email'), help_text=_('Required. Enter an existing email address.'))
+
+    password1 = forms.CharField(
+        label=_("Password"),
+        strip=False,
+        widget=forms.PasswordInput,
+        help_text=password_validation.password_validators_help_text_html(),
+    )
+
+    password2 = forms.CharField(
+        label=_("Password confirmation"),
+        widget=forms.PasswordInput,
+        strip=False,
+        help_text=_("Enter the same password as before, for verification."),
+    )
+
     class Meta:
         model = User
-        fields = settings.SIGN_UP_FIELDS
-
-    email = forms.EmailField(label=_('Email'), help_text=_('Required. Enter an existing email address.'))
+        fields = settings.SIGN_UP_FIELDS + ['password1', 'password2']
 
     def clean_email(self):
         email = self.cleaned_data['email']
-
-        user = User.objects.filter(email__iexact=email).exists()
-        if user:
-            raise ValidationError(_('You can not use this email address.'))
-
+        user_exists = User.objects.filter(email__iexact=email).exists()
+        if user_exists:
+            raise ValidationError(_('A user with that email address already exists.'))
         return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data['email']
+        if commit:
+            user.save()
+        return user
 
 
 class ResendActivationCodeForm(UserCacheMixin, forms.Form):
@@ -266,3 +286,84 @@ class AddFamilyMemberForm(forms.ModelForm):
         self.fields['father'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
         self.fields['mother'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
         self.fields['spouse'].label_from_instance = lambda obj: f'{obj.first_name} {obj.last_name}'
+
+
+class CreateFamilyTreeForm(forms.ModelForm):
+    class Meta:
+        model = FamilyTree
+        fields = ['name']
+        labels = {
+            'name': _('Family Tree Name'),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].widget.attrs.update({'class': 'form-control'})
+
+
+class FamilyTreeForm(forms.ModelForm):
+    class Meta:
+        model = FamilyTree
+        fields = ['name', 'description']
+        labels = {
+            'name': _('Family Tree Name'),
+            'description': _('Family Tree Description')
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].widget.attrs.update({'class': 'form-control'})
+        self.fields['description'].widget.attrs.update({'class': 'form-control'})
+
+
+class EditPersonInformationForm(forms.ModelForm):
+
+    class Meta:
+        model = Person
+        fields = ['first_name', 'middle_name', 'last_name', 'gender', 'birthdate', 'deathdate',
+                  'profile_photo', 'father', 'mother', 'spouse', 'email', 'phone', 'address', 'bio', 'personal_storage']
+
+        labels = {
+            'first_name': _('First Name'),
+            'middle_name': _('Middle Name'),
+            'last_name': _('Last Name'),
+            'gender': _('Gender'),
+            'birthdate': _('Birthdate'),
+            'deathdate': _('Deathdate'),
+            'profile_photo': _('Profile Photo'),
+            'father': _('Father'),
+            'mother': _('Mother'),
+            'spouse': _('Spouse'),
+            'email': _('Email'),
+            'phone': _('Phone'),
+            'address': _('Address'),
+            'bio': _('Bio'),
+            'personal_storage': _('Personal Storage'),
+        }
+
+        widgets = {
+            'birthdate': forms.DateInput(attrs={'type': 'date'}),
+            'deathdate': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+
+class PersonForm(forms.ModelForm):
+    class Meta:
+        model = Person
+        exclude = ('id', 'family_tree', 'user')
+        labels = {
+            'first_name': _('First name'),
+            'middle_name': _('Middle name'),
+            'last_name': _('Last name'),
+            'birthdate': _('Birth date'),
+            'deathdate': _('Death date'),
+            'profile_photo': _('Profile photo'),
+            'father': _('Father'),
+            'mother': _('Mother'),
+            'spouse': _('Spouse'),
+            'email': _('Email'),
+            'phone': _('Phone'),
+            'address': _('Address'),
+            'bio': _('Bio'),
+            'personal_storage': _('Personal storage')
+        }

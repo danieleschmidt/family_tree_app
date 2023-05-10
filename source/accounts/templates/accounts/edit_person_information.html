@@ -1,0 +1,24 @@
+{% extends 'layouts/default/page.html' %}
+
+{% load bootstrap4 %}
+{% load i18n %}
+
+{% block title %}Edit Person{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">{% trans 'Edit Person' %}</h3>
+    </div>
+    <div class="card-body">
+      <form method="post" class="form" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        <div class="form-group mt-3">
+          <button type="submit" class="btn btn-primary">{% trans 'Save' %}</button>
+          <a href="{% url 'accounts:person_detail' person.id %}" class="btn btn-secondary">{% trans 'Cancel' %}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

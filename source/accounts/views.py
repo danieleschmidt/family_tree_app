@@ -21,6 +21,22 @@ from django.views.generic import View, FormView
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 import json
+from django.urls import reverse, reverse_lazy
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import get_user_model
+from django.views import generic
+from django.shortcuts import redirect
+from django.views.generic.edit import FormView
+from django.utils.crypto import get_random_string
+from django.utils.translation import gettext_lazy as _
+from django.contrib import messages
+from django.views.decorators.http import require_http_methods
+
+from .forms import ChangeEmailForm, CreateFamilyTreeForm, PersonForm
+from .models import Activation
+from .utils import send_activation_change_email
+from app import settings
+from django.utils.functional import SimpleLazyObject
 
 from .utils import (
     send_activation_email, send_reset_password_email, send_forgotten_username_email, send_activation_change_email,
@@ -28,10 +44,11 @@ from .utils import (
 from .forms import (
     SignInViaUsernameForm, SignInViaEmailForm, SignInViaEmailOrUsernameForm, SignUpForm,
     RestorePasswordForm, RestorePasswordViaEmailOrUsernameForm, RemindUsernameForm,
-    ResendActivationCodeForm, ResendActivationCodeViaEmailForm, ChangeProfileForm, ChangeEmailForm, AddFamilyMemberForm
+    ResendActivationCodeForm, ResendActivationCodeViaEmailForm, ChangeProfileForm, ChangeEmailForm, AddFamilyMemberForm,
+    EditPersonInformationForm
 )
-from .models import Activation, Person, FamilyTree
-from .forms import InvitationForm
+from .models import Activation, Person, FamilyTree, User, UserPermissionRole, UserGroupRole, UserRole, UserProfile
+from .forms import InvitationForm, FamilyTreeForm, PersonForm
 
 
 class GuestOnlyView(View):
@@ -89,52 +106,57 @@ class LogInView(GuestOnlyView, FormView):
         return redirect(settings.LOGIN_REDIRECT_URL)
 
 
-class SignUpView(GuestOnlyView, FormView):
+# class SignUpView(generic.CreateView):
+#     form_class = SignUpForm
+#     success_url = reverse_lazy('accounts:user_dashboard')
+#     template_name = 'accounts/sign_up.html'
+#
+#     def form_valid(self, form):
+#         response = super().form_valid(form)
+#         user = form.save(commit=False)
+#         user.set_password(form.cleaned_data.get('password1'))
+#         user.save()
+#         user_role = UserRole.objects.get(role_name='Regular')
+#         user_group_role = UserGroupRole.objects.get(role_name='Family')
+#         user_permission_role = UserPermissionRole.objects.get(role_name='User')
+#         user_profile = UserProfile(user=user, user_role=user_role, user_group_role=user_group_role, permission_role=user_permission_role)
+#         user_profile.save()
+#         return response
+
+
+# class SignUpView(FormView):
+#     template_name = 'accounts/sign-up.html'
+#     form_class = SignUpForm
+#
+#     def form_valid(self, form):
+#         user = User.objects.create_user(
+#             username=form.cleaned_data['username'],
+#             password=form.cleaned_data['password1'],
+#             email=form.cleaned_data['email'],
+#             first_name=form.cleaned_data['first_name'],
+#             last_name=form.cleaned_data['last_name'],
+#             user_role=UserRole.objects.get(role_name='Regular'),
+#             user_group_role=UserGroupRole.objects.get(group_name='Default'),
+#             permission_role=UserPermissionRole.objects.get(permission_name='Read'),
+#         )
+#         user_profile = UserProfile.objects.create(
+#             user=user,
+#             date_of_birth=form.cleaned_data['date_of_birth'],
+#             profile_picture=form.cleaned_data['profile_picture'],
+#         )
+#         return redirect('home')
+
+
+class SignUpView(FormView):
     template_name = 'accounts/sign_up.html'
     form_class = SignUpForm
+    success_url = reverse_lazy('accounts:log_in')
 
     def form_valid(self, form):
-        request = self.request
         user = form.save(commit=False)
-
-        if settings.DISABLE_USERNAME:
-            # Set a temporary username
-            user.username = get_random_string()
-        else:
-            user.username = form.cleaned_data['username']
-
-        if settings.ENABLE_USER_ACTIVATION:
-            user.is_active = False
-
-        # Create a user record
+        user.set_password(form.cleaned_data['password1'])
         user.save()
-
-        # Change the username to the "user_ID" form
-        if settings.DISABLE_USERNAME:
-            user.username = f'user_{user.id}'
-            user.save()
-
-        if settings.ENABLE_USER_ACTIVATION:
-            code = get_random_string(20)
-
-            act = Activation()
-            act.code = code
-            act.user = user
-            act.save()
-
-            send_activation_email(request, user.email, code)
-
-            messages.success(
-                request, _('You are signed up. To activate the account, follow the link sent to the mail.'))
-        else:
-            raw_password = form.cleaned_data['password1']
-
-            user = authenticate(username=user.username, password=raw_password)
-            login(request, user)
-
-            messages.success(request, _('You are successfully signed up!'))
-
-        return redirect('index')
+        return super().form_valid(form)
 
 
 class ActivateView(View):
@@ -269,6 +291,16 @@ class ChangeEmailView(LoginRequiredMixin, FormView):
         return redirect('accounts:change_email')
 
 
+def unwrap_simple_lazy_object(obj):
+    """
+    If the object is a SimpleLazyObject, return its underlying value, otherwise return the object itself
+    """
+    if isinstance(obj, SimpleLazyObject):
+        return obj._wrapped
+    else:
+        return obj
+
+
 class ChangeEmailActivateView(View):
     @staticmethod
     def get(request, code):
@@ -342,6 +374,9 @@ class LogOutView(LoginRequiredMixin, View):
         return render(request, self.template_name)
 
 
+from django.db.models import Q
+
+
 class AddFamilyMemberView(LoginRequiredMixin, View):
     def get(self, request):
         form = AddFamilyMemberForm()
@@ -356,8 +391,32 @@ class AddFamilyMemberView(LoginRequiredMixin, View):
             # Assign the user's family tree to the new person
             new_person.family_tree = family_tree
             new_person.save()
+
+            # Check if the new person already exists in the family tree
+            existing_person = Person.objects.filter(
+                family_tree=family_tree,
+                first_name=new_person.first_name,
+                middle_name=new_person.middle_name,
+                last_name=new_person.last_name,
+                gender=new_person.gender,
+                birthdate=new_person.birthdate,
+                deathdate=new_person.deathdate,
+                father=new_person.father,
+                mother=new_person.mother,
+                spouse=new_person.spouse,
+                email=new_person.email,
+                phone=new_person.phone,
+                address=new_person.address,
+                bio=new_person.bio,
+                personal_storage=new_person.personal_storage,
+            ).first()
+
+            if existing_person:
+                messages.warning(request, 'This person already exists in your family tree.')
+                return redirect('accounts:family_tree_view')
+
             messages.success(request, 'New family member added successfully')
-            return redirect('accounts:family_tree')
+            return redirect('accounts:family_tree_view')
         else:
             messages.error(request, 'There was an error with your form. Please try again.')
             return render(request, 'add_family_member.html', {'form': form})
@@ -411,9 +470,12 @@ class FamilyTreeView(LoginRequiredMixin, View):
     template_name = 'accounts/family_tree.html'
 
     def get(self, request):
-
         # Fetch the family tree of the logged in user
-        family_tree = FamilyTree.objects.get(super_admin=request.user)
+        try:
+            family_tree = FamilyTree.objects.get(super_admin=request.user)
+        except FamilyTree.DoesNotExist:
+            # Redirect the user to create a family tree
+            return redirect('accounts:create_family_tree')
 
         # Fetch all family members related to the user's family tree
         family_members = Person.objects.filter(family_tree=family_tree)
@@ -424,7 +486,6 @@ class FamilyTreeView(LoginRequiredMixin, View):
         # Pass the nodes and edges data to the template
         context = {'nodes': nodes, 'edges': edges, 'family_tree': family_tree}
         return render(request, self.template_name, context)
-
 
     @staticmethod
     def family_members_to_visjs_data(family_members):
@@ -442,6 +503,28 @@ class FamilyTreeView(LoginRequiredMixin, View):
                 edges.append({'from': member.mother.id, 'to': member.id})
 
         return nodes, edges
+
+    def create_person(self, request, family_tree):
+        # Get the submitted form data
+        form_data = request.POST
+        form_files = request.FILES
+
+        # Create a new Person instance from the form data
+        person = Person()
+        person.family_tree = family_tree
+        person.first_name = form_data['first_name']
+        person.last_name = form_data['last_name']
+        person.gender = form_data['gender']
+        person.date_of_birth = form_data['date_of_birth']
+        person.place_of_birth = form_data['place_of_birth']
+        person.profile_picture = form_files.get('profile_picture')
+        person.save()
+
+        # Add the new person to the user's family tree
+        family_tree.add_person(person)
+
+        # Return the newly created person instance
+        return person
 
 
 def get_root_family_members(user):
@@ -470,18 +553,189 @@ def send_invitation(request):
         recipient_email = request.POST['email']
         # Add logic to send an email invitation here
         messages.success(request, 'Invitation sent to {}'.format(recipient_email))
-        return redirect('user_dashboard')
+        return redirect('accounts/user_dashboard')
 
+
+# @login_required
+# def user_dashboard(request):
+#
+#     user = request.user
+#     person = Person.objects.filter(user=user).first()
+#     context = {'person': person}
+#
+#     # try to get family tree, if the user is in one
+#     try:
+#         family_tree = FamilyTree.objects.filter(super_admin=user).first()
+#         context.update({'family_tree': family_tree})
+#
+#     except AttributeError:
+#         pass
+#
+#     if request.method == 'POST':
+#         # handle create family tree form submission
+#         form = CreateFamilyTreeForm(request.POST)
+#
+#         if form.is_valid():
+#             family_tree = form.save(commit=False)
+#             family_tree.super_admin = user
+#             family_tree.save()
+#             messages.success(request, 'Family tree created successfully.')
+#             context.update({'family_tree': family_tree})
+#             return redirect('accounts:user_dashboard')
+#
+#         else:
+#             messages.error(request, 'Error creating family tree. Please try again.')
+#     else:
+#         # display create family tree form
+#         form = CreateFamilyTreeForm()
+#
+#     context.update({'create_family_tree_form': form})
+#
+#     return render(request, 'accounts/user_dashboard.html', context)
 
 @login_required
 def user_dashboard(request):
-
     user = request.user
     person = Person.objects.filter(user=user).first()
-    family_tree = FamilyTree.objects.filter(super_admin=user).first()
-    context = {
-        'person': person,
-        'family_tree': family_tree,
-    }
+    context = {'person': person}
+
+    # try to get family tree, if the user is in one
+    try:
+        family_tree = FamilyTree.objects.filter(super_admin=user).first()
+        context.update({'family_tree': family_tree})
+    except AttributeError:
+        pass
+
+    if request.method == 'POST':
+        # handle create family tree form submission
+        form = CreateFamilyTreeForm(request.POST)
+        if form.is_valid():
+            family_tree = form.save(commit=False)
+            family_tree.super_admin = user
+            family_tree.save()
+            messages.success(request, 'Family tree created successfully.')
+            context.update({'family_tree': family_tree})
+            return redirect('accounts:user_dashboard')
+        else:
+            messages.error(request, 'Error creating family tree. Please try again.')
+    else:
+        # display create family tree form
+        form = CreateFamilyTreeForm()
+
+    context.update({'create_family_tree_form': form})
+
+    if request.method == 'POST' and 'edit_person' in request.POST:
+        # handle edit person form submission
+        form = EditPersonInformationForm(request.POST, request.FILES, instance=person)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Person information updated successfully.')
+            return redirect('accounts:user_dashboard')
+        else:
+            messages.error(request, 'Error updating person information. Please try again.')
+    else:
+        # display edit person form
+        form = EditPersonInformationForm(instance=person)
+
+    context.update({'edit_person_form': form})
 
     return render(request, 'accounts/user_dashboard.html', context)
+
+
+class CreateFamilyTreeView(LoginRequiredMixin, View):
+    template_name = 'accounts/family_tree_create.html'
+
+    def get(self, request):
+        form = CreateFamilyTreeForm()
+        context = {'form': form}
+        return render(request, self.template_name, context)
+
+    def post(self, request):
+        form = CreateFamilyTreeForm(request.POST)
+        if form.is_valid():
+            family_tree_name = form.cleaned_data['name']
+            user = request.user
+
+            # Check if a family tree already exists for the user
+            if FamilyTree.objects.filter(super_admin=user).exists():
+                messages.error(request, _('You already have a family tree.'))
+                return redirect('accounts:user_dashboard')
+
+            # Create a new family tree for the user
+            family_tree = FamilyTree.objects.create(
+                name=family_tree_name,
+                super_admin=user
+            )
+
+            # Redirect to the family tree page
+            messages.success(request, _('Family tree created successfully.'))
+            return redirect('accounts:family_tree_view')
+
+        context = {'form': form}
+        return render(request, self.template_name, context)
+
+
+class FamilyTreeManagementView(LoginRequiredMixin, View):
+    template_name = 'accounts/family_tree_management.html'
+    form_class = FamilyTreeForm
+
+    def get(self, request):
+        # Fetch the family tree of the logged in user
+        family_tree = get_object_or_404(FamilyTree, super_admin=request.user)
+
+        # Create a form instance with initial data from the family tree
+        form = self.form_class(initial={
+            'name': family_tree.name,
+            'description': family_tree.description,
+        })
+
+        context = {'form': form, 'family_tree': family_tree}
+        return render(request, self.template_name, context)
+
+    def post(self, request):
+        # Fetch the family tree of the logged in user
+        family_tree = get_object_or_404(FamilyTree, super_admin=request.user)
+
+        # Create a form instance with the POST data and the family tree instance
+        form = self.form_class(request.POST, instance=family_tree)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Family tree details updated successfully.')
+            return redirect('accounts:family_tree_management')
+
+        context = {'form': form, 'family_tree': family_tree}
+        return render(request, self.template_name, context)
+
+
+@login_required
+def edit_person_information(request, person_id):
+    person = get_object_or_404(Person, id=person_id)
+
+    if request.method == 'POST':
+        form = PersonForm(request.POST, instance=person)
+        if form.is_valid():
+            form.save()
+            return redirect('person_detail', person_id=person.id)
+    else:
+        form = PersonForm(instance=person)
+
+    return render(request, 'accounts/edit_person_information.html', {'form': form})
+
+
+@require_http_methods(["GET", "POST"])
+def person_detail(request, person_id):
+    print('TRYING')
+    print(f"Person ID: {person_id}") # added print statement
+    person = get_object_or_404(Person, id=person_id)
+
+    if request.method == "POST":
+        form = PersonForm(request.POST, request.FILES, instance=person)
+        if form.is_valid():
+            form.save()
+            return redirect('accounts/person_detail', person_id=person.id)
+    else:
+        form = PersonForm(instance=person)
+
+    context = {'person': person, 'form': form}
+    return render(request, 'accounts/person_detail.html', context)

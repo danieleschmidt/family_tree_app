@@ -2,44 +2,42 @@
 
 {% load bootstrap4 %}
 {% load i18n %}
+{% load static %}
+
+{% block title %}User Dashboard{% endblock %}
 
 {% block content %}
-    <h1>User Dashboard</h1>
 
-    <h2>Personal Information</h2>
-    <h3>Welcome, {{ user.username }}</h3>
-    {% if user.person.profile_photo %}
-    <p><img src="{{ user.person.profile_photo.url }}" alt="{{ user.person.full_name }}"></p>
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">{% trans 'Welcome to your User Dashboard' %}</h3>
+  </div>
+  <div class="card-body">
+    {% if person %}
+    <div class="card">
+      <div class="card-body">
+        <div class="row">
+          <div class="col-sm-3">
+            {% if person.profile_photo %}
+            <img src="{{ person.profile_photo.url }}" class="rounded-circle" height="150px" width="150px">
+            {% else %}
+            <img src="{% static 'img/default-profile.png' %}" class="rounded-circle" height="150px" width="150px">
+            {% endif %}
+          </div>
+          <div class="col-sm-9">
+            <h2>{{ person.full_name }}</h2>
+            <p>{{ person.bio }}</p>
+            <p>{{ person.email }}</p>
+            <p>{{ person.phone }}</p>
+            <p>{{ person.address }}</p>
+            <p>{{ person.personal_storage }}</p>
+            <a href="{% url 'accounts:edit_person_information' person.id %}" class="btn btn-primary">{% trans 'Edit Person' %}</a>
+          </div>
+        </div>
+      </div>
+    </div>
     {% endif %}
-    {% if user.person.personal_storage %}
-    <p>Personal Storage: <a href="{{ user.person.personal_storage }}">Link</a></p>
-    <p>Email: {{ user.email }}</p>
-    <p>First Name: {{ user.person.first_name }}</p>
-    <p>Last Name: {{ user.person.last_name }}</p>
-    <p>Gender: {{ user.person.gender }}</p>
-    <p>Birthdate: {{ user.person.birthdate }}</p>
-    {% if user.person.deathdate %}
-        <p>Death Date: {{ user.person.deathdate }}</p>
-    {% endif %}
-    <p>Phone: {{ user.person.phone }}</p>
-    <p>Address: {{ user.person.address }}</p>
-    <p>Bio: {{ user.person.bio }}</p>
-
-    {% endif %}
-    {% if family_tree %}
-        <h2>Family Tree</h2>
-        <a href="{% url 'accounts:family_tree_view' %}">{% trans "View Family Tree" %}</a>
-
-        <h2>Invite a New Member</h2>
-        <form method="post" action="{% url 'accounts:send_invitation' %}">
-            {% csrf_token %}
-            <label for="email">Email:</label>
-            <input type="email" name="email" required>
-            <input type="hidden" name="family_tree_id" value="{{ family_tree.id }}">
-            <button type="submit">Send Invitation</button>
-        </form>
-    {% else %}
-        <p>You don't have a family tree yet. <a href="{% url 'accounts:create_family_tree' %}">Create one</a>.</p>
-    {% endif %}
+  </div>
+</div>
 
 {% endblock %}
