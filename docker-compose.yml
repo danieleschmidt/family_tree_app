@@ -1,0 +1,130 @@
+# Family Tree App - Docker Compose Configuration
+# Provides development environment with PostgreSQL and Redis
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: family_tree_db
+      POSTGRES_USER: family_tree_user
+      POSTGRES_PASSWORD: family_tree_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U family_tree_user -d family_tree_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - DATABASE_ENGINE=django.db.backends.postgresql
+      - DATABASE_NAME=family_tree_db
+      - DATABASE_USER=family_tree_user
+      - DATABASE_PASSWORD=family_tree_password
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - CACHE_BACKEND=django.core.cache.backends.redis.RedisCache
+      - CACHE_LOCATION=redis://redis:6379/1
+    volumes:
+      - .:/app
+      - media_files:/app/content/media
+      - static_files:/app/content/static
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python source/manage.py migrate &&
+             python source/manage.py collectstatic --noinput &&
+             python source/manage.py runserver 0.0.0.0:8000"
+
+  celery:
+    build: .
+    restart: unless-stopped
+    environment:
+      - DEBUG=True
+      - DATABASE_ENGINE=django.db.backends.postgresql
+      - DATABASE_NAME=family_tree_db
+      - DATABASE_USER=family_tree_user
+      - DATABASE_PASSWORD=family_tree_password
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - CACHE_BACKEND=django.core.cache.backends.redis.RedisCache
+      - CACHE_LOCATION=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+    command: celery -A app worker --loglevel=info
+
+  celery-beat:
+    build: .
+    restart: unless-stopped
+    environment:
+      - DEBUG=True
+      - DATABASE_ENGINE=django.db.backends.postgresql
+      - DATABASE_NAME=family_tree_db
+      - DATABASE_USER=family_tree_user
+      - DATABASE_PASSWORD=family_tree_password
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - CACHE_BACKEND=django.core.cache.backends.redis.RedisCache
+      - CACHE_LOCATION=redis://redis:6379/1
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+    command: celery -A app beat --loglevel=info
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_files:/var/www/static
+      - media_files:/var/www/media
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_files:
+  static_files:
+
+networks:
+  default:
+    name: family_tree_network

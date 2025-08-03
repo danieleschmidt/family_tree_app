@@ -1,0 +1,72 @@
+{
+    "python.defaultInterpreterPath": "./venv/bin/python",
+    "python.formatting.provider": "black",
+    "python.formatting.blackArgs": ["--line-length=88"],
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": ["--max-line-length=88", "--extend-ignore=E203,W503"],
+    "python.linting.mypyEnabled": true,
+    "python.linting.banditEnabled": true,
+    
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true
+    },
+    "editor.rulers": [88],
+    
+    "files.associations": {
+        "*.html": "django-html"
+    },
+    
+    "emmet.includeLanguages": {
+        "django-html": "html"
+    },
+    
+    "djlint.useEditorIndentation": true,
+    "djlint.formatOnSave": true,
+    
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/node_modules": true,
+        "**/.venv": true,
+        "**/.env": true,
+        "**/venv": true,
+        "**/env": true,
+        "**/.pytest_cache": true,
+        "**/.coverage": true,
+        "**/htmlcov": true,
+        "**/.mypy_cache": true,
+        "**/logs": true
+    },
+    
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/venv": true,
+        "**/env": true,
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/content/static/collected": true,
+        "**/content/media": true
+    },
+    
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    
+    "django.snippets.use": true,
+    "django.completions.enabled": true,
+    
+    "html.format.indentInnerHtml": true,
+    "html.format.wrapLineLength": 88,
+    
+    "css.validate": true,
+    "scss.validate": true,
+    
+    "javascript.preferences.quoteStyle": "single",
+    "typescript.preferences.quoteStyle": "single"
+}
