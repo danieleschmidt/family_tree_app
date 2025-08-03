@@ -1,41 +1,60 @@
 {
     "name": "Family Tree App Development",
-    "image": "python:3.9-slim",
+    "dockerComposeFile": "../docker-compose.dev.yml",
+    "service": "web",
+    "workspaceFolder": "/workspace",
     
     "features": {
-        "ghcr.io/devcontainers/features/python:1": {
-            "version": "3.9"
-        },
-        "ghcr.io/devcontainers/features/node:1": {
-            "version": "16"
-        },
         "ghcr.io/devcontainers/features/git:1": {},
-        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+        "ghcr.io/devcontainers/features/github-cli:1": {},
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "18"
+        }
     },
     
     "customizations": {
         "vscode": {
             "extensions": [
                 "ms-python.python",
-                "ms-python.autopep8",
                 "ms-python.flake8",
-                "ms-python.pylint",
-                "batisteo.vscode-django",
+                "ms-python.mypy-type-checker",
+                "ms-python.black-formatter",
+                "ms-python.isort",
                 "ms-vscode.vscode-json",
+                "redhat.vscode-yaml",
+                "ms-vscode.vscode-typescript-next",
                 "bradlc.vscode-tailwindcss",
-                "formulahendry.auto-rename-tag",
-                "esbenp.prettier-vscode"
+                "ms-vscode.live-server",
+                "eamodio.gitlens",
+                "ms-vscode.test-adapter-converter",
+                "ms-python.pytest",
+                "batisteo.vscode-django",
+                "ms-toolsai.jupyter"
             ],
             "settings": {
-                "python.defaultInterpreterPath": "/usr/local/bin/python",
-                "python.formatting.provider": "autopep8",
+                "python.defaultInterpreterPath": "/opt/poetry/venv/bin/python",
                 "python.linting.enabled": true,
-                "python.linting.pylintEnabled": true,
+                "python.linting.pylintEnabled": false,
                 "python.linting.flake8Enabled": true,
+                "python.linting.mypyEnabled": true,
+                "python.formatting.provider": "black",
+                "python.sortImports.args": ["--profile", "black"],
                 "editor.formatOnSave": true,
                 "editor.codeActionsOnSave": {
                     "source.organizeImports": true
-                }
+                },
+                "files.exclude": {
+                    "**/__pycache__": true,
+                    "**/*.pyc": true,
+                    "**/node_modules": true,
+                    "**/.git": false
+                },
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "git.autofetch": true,
+                "git.enableSmartCommit": true,
+                "python.terminal.activateEnvironment": true,
+                "django.snippets.enabled": true
             }
         }
     },
@@ -44,7 +63,7 @@
     "portsAttributes": {
         "8000": {
             "label": "Django Development Server",
-            "onAutoForward": "openPreview"
+            "onAutoForward": "notify"
         },
         "5432": {
             "label": "PostgreSQL Database"
@@ -56,14 +75,15 @@
     
     "postCreateCommand": "bash .devcontainer/setup.sh",
     
+    "remoteUser": "vscode",
+    
     "containerEnv": {
         "DJANGO_SETTINGS_MODULE": "app.conf.development.settings",
-        "PYTHONPATH": "/workspaces/family_tree_app/source"
+        "PYTHONPATH": "/workspace/source"
     },
     
     "mounts": [
-        "source=${localWorkspaceFolder}/.vscode,target=/workspaces/family_tree_app/.vscode,type=bind,consistency=cached"
-    ],
-    
-    "workspaceFolder": "/workspaces/family_tree_app"
+        "source=${localWorkspaceFolder}/.vscode,target=/workspace/.vscode,type=bind",
+        "source=family-tree-node-modules,target=/workspace/node_modules,type=volume"
+    ]
 }

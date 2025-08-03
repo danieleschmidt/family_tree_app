@@ -48,366 +48,520 @@ class RelationshipCalculator:
             }
         """
         if person1 == person2:
-            return {'relationship': 'self', 'degree': 0, 'generation_diff': 0}
+            return {
+                'relationship': 'self',
+                'degree': 0,
+                'generation_diff': 0,
+                'common_ancestor': None,
+                'path_description': 'Same person'
+            }
         
         # Check cache first
-        cache_key = f"{self.cache_prefix}_{person1.id}_{person2.id}"
+        cache_key = f"{self.cache_prefix}_{min(person1.id, person2.id)}_{max(person1.id, person2.id)}"
         cached_result = cache.get(cache_key)
         if cached_result:
             return cached_result
         
-        # Find shortest path between the two people
-        path = self._find_shortest_path(person1, person2)
-        
-        if not path:
-            result = {'relationship': 'no relation', 'degree': -1, 'generation_diff': 0}
-        else:
-            result = self._analyze_relationship_path(path)
+        # Find common ancestors and calculate relationship
+        result = self._calculate_relationship_path(person1, person2)
         
         # Cache the result
         cache.set(cache_key, result, self.RELATIONSHIP_CACHE_TIMEOUT)
         return result
     
-    def _find_shortest_path(self, start: Person, end: Person) -> Optional[List[Person]]:
-        """
-        Find the shortest path between two people using BFS.
+    def _calculate_relationship_path(self, person1: Person, person2: Person) -> Dict[str, str]:
+        """Internal method to calculate relationship path between two people."""
+        # Find all ancestors for both people
+        ancestors1 = self._get_ancestors_with_path(person1)
+        ancestors2 = self._get_ancestors_with_path(person2)
         
-        Returns:
-            List of Person objects representing the path, or None if no path exists
-        """
-        if start == end:
-            return [start]
+        # Find common ancestors
+        common_ancestors = set(ancestors1.keys()) & set(ancestors2.keys())
         
-        visited = set()
-        queue = deque([(start, [start])])
-        
-        while queue:
-            current_person, path = queue.popleft()
-            
-            if current_person in visited:
-                continue
-            visited.add(current_person)
-            
-            # Get all connected people (parents, children, spouses)
-            connected_people = self._get_connected_people(current_person)
-            
-            for connected_person in connected_people:
-                if connected_person == end:
-                    return path + [connected_person]
-                
-                if connected_person not in visited:
-                    queue.append((connected_person, path + [connected_person]))
-        
-        return None
-    
-    def _get_connected_people(self, person: Person) -> Set[Person]:
-        """Get all people directly connected to a person."""
-        connected = set()
-        
-        # Add parents
-        if person.father:
-            connected.add(person.father)
-        if person.mother:
-            connected.add(person.mother)
-        
-        # Add children
-        children = Person.objects.filter(
-            Q(father=person) | Q(mother=person),
-            family_tree=self.family_tree
-        )
-        connected.update(children)
-        
-        # Add spouse
-        if person.spouse:
-            connected.add(person.spouse)
-        
-        # Add anyone who has this person as spouse
-        spouses = Person.objects.filter(spouse=person, family_tree=self.family_tree)
-        connected.update(spouses)
-        
-        return connected
-    
-    def _analyze_relationship_path(self, path: List[Person]) -> Dict[str, str]:
-        """
-        Analyze a path between two people to determine their relationship.
-        
-        Args:
-            path: List of Person objects representing the connection path
-            
-        Returns:
-            Dictionary with relationship details
-        """
-        if len(path) == 2:
-            return self._analyze_direct_relationship(path[0], path[1])
-        
-        # Find common ancestor (lowest point in the path)
-        common_ancestor_idx = self._find_common_ancestor_index(path)
-        
-        if common_ancestor_idx == -1:
-            return {'relationship': 'unknown', 'degree': -1, 'generation_diff': 0}
-        
-        # Split path at common ancestor
-        up_path = path[:common_ancestor_idx + 1]
-        down_path = path[common_ancestor_idx:]
-        
-        # Calculate generations up and down
-        generations_up = len(up_path) - 1
-        generations_down = len(down_path) - 1
-        
-        # Determine relationship type
-        return self._determine_relationship_type(
-            generations_up, generations_down, path[common_ancestor_idx]
-        )
-    
-    def _analyze_direct_relationship(self, person1: Person, person2: Person) -> Dict[str, str]:
-        """Analyze direct relationships (parent-child, spouse)."""
-        # Check if spouse relationship
-        if person1.spouse == person2 or person2.spouse == person1:
+        if not common_ancestors:
             return {
-                'relationship': 'spouse',
-                'degree': 1,
+                'relationship': 'unrelated',
+                'degree': -1,
                 'generation_diff': 0,
                 'common_ancestor': None,
-                'path_description': f"{person1.first_name} is married to {person2.first_name}"
+                'path_description': 'No known relationship'
             }
         
-        # Check parent-child relationships
-        if person1.father == person2 or person1.mother == person2:
-            return {
-                'relationship': 'child',
-                'degree': 1,
-                'generation_diff': -1,
-                'common_ancestor': person2,
-                'path_description': f"{person1.first_name} is the child of {person2.first_name}"
-            }
+        # Find the closest common ancestor (minimum total distance)
+        closest_ancestor = min(
+            common_ancestors,
+            key=lambda a: ancestors1[a]['distance'] + ancestors2[a]['distance']
+        )
         
-        if person2.father == person1 or person2.mother == person1:
-            return {
-                'relationship': 'parent',
-                'degree': 1,
-                'generation_diff': 1,
-                'common_ancestor': person1,
-                'path_description': f"{person1.first_name} is the parent of {person2.first_name}"
-            }
+        dist1 = ancestors1[closest_ancestor]['distance']
+        dist2 = ancestors2[closest_ancestor]['distance']
         
-        return {'relationship': 'unknown', 'degree': -1, 'generation_diff': 0}
+        return self._determine_relationship_type(
+            person1, person2, closest_ancestor, dist1, dist2
+        )
     
-    def _find_common_ancestor_index(self, path: List[Person]) -> int:
-        """Find the index of the common ancestor in the path."""
-        # For now, assume the middle person is the common ancestor
-        # This is a simplified implementation - a more complex one would
-        # analyze the actual family structure
-        return len(path) // 2
+    def _get_ancestors_with_path(self, person: Person) -> Dict[Person, Dict]:
+        """Get all ancestors with their distance and path from the person."""
+        ancestors = {}
+        queue = deque([(person, 0, [person])])
+        visited = set()
+        
+        while queue:
+            current_person, distance, path = queue.popleft()
+            
+            if current_person.id in visited:
+                continue
+            visited.add(current_person.id)
+            
+            if distance > 0:  # Don't include self as ancestor
+                ancestors[current_person] = {
+                    'distance': distance,
+                    'path': path.copy()
+                }
+            
+            # Add parents to queue
+            if current_person.father:
+                queue.append((current_person.father, distance + 1, path + [current_person.father]))
+            if current_person.mother:
+                queue.append((current_person.mother, distance + 1, path + [current_person.mother]))
+        
+        return ancestors
     
-    def _determine_relationship_type(
-        self, generations_up: int, generations_down: int, common_ancestor: Person
-    ) -> Dict[str, str]:
-        """
-        Determine the relationship type based on generational differences.
+    def _determine_relationship_type(self, person1: Person, person2: Person, 
+                                   common_ancestor: Person, dist1: int, dist2: int) -> Dict:
+        """Determine the specific relationship type based on distances to common ancestor."""
+        generation_diff = abs(dist1 - dist2)
         
-        Args:
-            generations_up: Generations from first person to common ancestor
-            generations_down: Generations from common ancestor to second person
-            common_ancestor: The common ancestor person
-        """
-        generation_diff = generations_down - generations_up
+        # Direct relationships
+        if dist1 == 1 and dist2 == 1:
+            return self._sibling_relationship(person1, person2, common_ancestor)
         
-        # Direct descendants/ancestors
-        if generations_up == 1 and generations_down > 1:
-            if generations_down == 2:
-                relationship = 'grandchild'
-            elif generations_down == 3:
-                relationship = 'great grandchild'
-            else:
-                relationship = f"great{'×' + str(generations_down - 3) if generations_down > 3 else ''} grandchild"
-        elif generations_down == 1 and generations_up > 1:
-            if generations_up == 2:
-                relationship = 'grandparent'
-            elif generations_up == 3:
-                relationship = 'great grandparent'
-            else:
-                relationship = f"great{'×' + str(generations_up - 3) if generations_up > 3 else ''} grandparent"
+        # Parent-child relationships
+        if (dist1 == 0 and dist2 == 1) or (dist1 == 1 and dist2 == 0):
+            return self._parent_child_relationship(person1, person2, dist1, dist2)
         
-        # Siblings and cousins
-        elif generations_up == 1 and generations_down == 1:
+        # Grandparent-grandchild relationships
+        if generation_diff > 1:
+            return self._linear_relationship(person1, person2, dist1, dist2, common_ancestor)
+        
+        # Cousin relationships
+        return self._cousin_relationship(person1, person2, dist1, dist2, common_ancestor)
+    
+    def _sibling_relationship(self, person1: Person, person2: Person, common_ancestor: Person) -> Dict:
+        """Determine sibling relationship type."""
+        # Check if they share both parents
+        shared_parents = 0
+        if person1.father and person1.father == person2.father:
+            shared_parents += 1
+        if person1.mother and person1.mother == person2.mother:
+            shared_parents += 1
+        
+        if shared_parents == 2:
             relationship = 'sibling'
-        elif generations_up == 2 and generations_down == 2:
-            relationship = 'cousin'
-        elif generations_up == 3 and generations_down == 3:
-            relationship = 'second cousin'
-        elif generations_up > 3 and generations_down > 3 and generations_up == generations_down:
-            degree = generations_up - 2
-            relationship = f"{self._ordinal(degree)} cousin"
-        
-        # Aunt/Uncle relationships
-        elif generations_up == 2 and generations_down == 1:
-            relationship = 'aunt/uncle'
-        elif generations_up == 1 and generations_down == 2:
-            relationship = 'niece/nephew'
-        elif generations_up > 2 and generations_down == 1:
-            relationship = f"grand aunt/uncle"
-        elif generations_up == 1 and generations_down > 2:
-            relationship = f"grand niece/nephew"
-        
-        # Cousin with removal
-        elif abs(generation_diff) > 0:
-            base_degree = min(generations_up, generations_down) - 1
-            removal = abs(generation_diff)
-            if base_degree == 1:
-                relationship = f"cousin {removal} time{'s' if removal > 1 else ''} removed"
-            else:
-                relationship = f"{self._ordinal(base_degree - 1)} cousin {removal} time{'s' if removal > 1 else ''} removed"
-        
+        elif shared_parents == 1:
+            relationship = 'half-sibling'
         else:
-            relationship = 'distant relative'
+            relationship = 'step-sibling'
         
         return {
             'relationship': relationship,
-            'degree': min(generations_up, generations_down),
-            'generation_diff': generation_diff,
+            'degree': 1,
+            'generation_diff': 0,
             'common_ancestor': common_ancestor,
-            'path_description': self._create_path_description(
-                generations_up, generations_down, relationship, common_ancestor
-            )
+            'path_description': f'{relationship.title()} relationship'
         }
     
-    def _ordinal(self, number: int) -> str:
-        """Convert number to ordinal (1st, 2nd, 3rd, etc.)."""
-        if 10 <= number % 100 <= 20:
+    def _parent_child_relationship(self, person1: Person, person2: Person, 
+                                 dist1: int, dist2: int) -> Dict:
+        """Determine parent-child relationship."""
+        if dist1 == 0:  # person1 is the ancestor
+            relationship = 'child'
+            path_desc = f'{person2.get_full_name()} is the child of {person1.get_full_name()}'
+        else:  # person2 is the ancestor
+            relationship = 'parent'
+            path_desc = f'{person2.get_full_name()} is the parent of {person1.get_full_name()}'
+        
+        return {
+            'relationship': relationship,
+            'degree': 1,
+            'generation_diff': 1,
+            'common_ancestor': person1 if dist1 == 0 else person2,
+            'path_description': path_desc
+        }
+    
+    def _linear_relationship(self, person1: Person, person2: Person, 
+                           dist1: int, dist2: int, common_ancestor: Person) -> Dict:
+        """Determine linear ancestor-descendant relationships."""
+        if dist1 < dist2:
+            generations = dist2 - dist1
+            if generations == 2:
+                relationship = 'grandparent'
+            elif generations == 3:
+                relationship = 'great-grandparent'
+            else:
+                relationship = f'{"great-" * (generations - 2)}grandparent'
+        else:
+            generations = dist1 - dist2
+            if generations == 2:
+                relationship = 'grandchild'
+            elif generations == 3:
+                relationship = 'great-grandchild'
+            else:
+                relationship = f'{"great-" * (generations - 2)}grandchild'
+        
+        return {
+            'relationship': relationship,
+            'degree': max(dist1, dist2),
+            'generation_diff': abs(dist1 - dist2),
+            'common_ancestor': common_ancestor,
+            'path_description': f'{relationship.title()} relationship'
+        }
+    
+    def _cousin_relationship(self, person1: Person, person2: Person, 
+                           dist1: int, dist2: int, common_ancestor: Person) -> Dict:
+        """Determine cousin relationship type."""
+        cousin_degree = min(dist1, dist2) - 1
+        removed = abs(dist1 - dist2)
+        
+        if cousin_degree == 1:
+            if removed == 0:
+                relationship = 'first cousin'
+            else:
+                relationship = f'first cousin {removed} times removed'
+        elif cousin_degree == 2:
+            if removed == 0:
+                relationship = 'second cousin'
+            else:
+                relationship = f'second cousin {removed} times removed'
+        else:
+            if removed == 0:
+                relationship = f'{self._ordinal(cousin_degree)} cousin'
+            else:
+                relationship = f'{self._ordinal(cousin_degree)} cousin {removed} times removed'
+        
+        return {
+            'relationship': relationship,
+            'degree': cousin_degree,
+            'generation_diff': removed,
+            'common_ancestor': common_ancestor,
+            'path_description': f'{relationship.title()} relationship through {common_ancestor.get_full_name()}'
+        }
+    
+    def _ordinal(self, n: int) -> str:
+        """Convert number to ordinal string (1st, 2nd, 3rd, etc.)."""
+        if 10 <= n % 100 <= 20:
             suffix = 'th'
         else:
-            suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(number % 10, 'th')
-        return f"{number}{suffix}"
-    
-    def _create_path_description(
-        self, generations_up: int, generations_down: int, 
-        relationship: str, common_ancestor: Person
-    ) -> str:
-        """Create a human-readable description of the relationship path."""
-        if common_ancestor:
-            return (
-                f"Related through {common_ancestor.first_name} {common_ancestor.last_name} "
-                f"({generations_up} generations up, {generations_down} generations down)"
-            )
-        return f"Direct {relationship} relationship"
+            suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
+        return f'{n}{suffix}'
 
 
 class FamilyTreeSearchService:
     """
-    Service for searching and filtering family tree data.
+    Service for searching and discovering family tree information.
     
     Provides advanced search capabilities including:
-    - Name-based search with fuzzy matching
-    - Date range filtering
-    - Location-based search
-    - Relationship-based discovery
+    - Multi-criteria person search
+    - Relationship-based queries
+    - Timeline and event searches
+    - Media and document searches
+    """
+    
+    def __init__(self, family_tree: FamilyTree):
+        self.family_tree = family_tree
+        self.relationship_calc = RelationshipCalculator(family_tree)
+    
+    def search_people(self, query: str, filters: Optional[Dict] = None) -> List[Person]:
+        """
+        Search for people in the family tree.
+        
+        Args:
+            query: Search query string
+            filters: Optional filters (birth_year_range, location, etc.)
+            
+        Returns:
+            List of matching Person objects
+        """
+        filters = filters or {}
+        
+        # Base queryset
+        queryset = Person.objects.filter(family_tree=self.family_tree)
+        
+        # Text search across multiple fields
+        if query:
+            queryset = queryset.filter(
+                Q(first_name__icontains=query) |
+                Q(last_name__icontains=query) |
+                Q(middle_name__icontains=query) |
+                Q(maiden_name__icontains=query) |
+                Q(nickname__icontains=query) |
+                Q(biography__icontains=query)
+            )
+        
+        # Apply filters
+        if 'birth_year_range' in filters:
+            start_year, end_year = filters['birth_year_range']
+            queryset = queryset.filter(
+                birth_date__year__range=(start_year, end_year)
+            )
+        
+        if 'location' in filters:
+            queryset = queryset.filter(
+                Q(birth_location__name__icontains=filters['location']) |
+                Q(death_location__name__icontains=filters['location'])
+            )
+        
+        if 'gender' in filters:
+            queryset = queryset.filter(gender=filters['gender'])
+        
+        return list(queryset.distinct())
+    
+    def find_relatives(self, person: Person, relationship_type: str, 
+                      max_degree: int = 3) -> List[Tuple[Person, Dict]]:
+        """
+        Find all relatives of a specific type for a person.
+        
+        Args:
+            person: The person to find relatives for
+            relationship_type: Type of relationship to find
+            max_degree: Maximum relationship degree to search
+            
+        Returns:
+            List of tuples (Person, relationship_info)
+        """
+        relatives = []
+        all_people = Person.objects.filter(family_tree=self.family_tree).exclude(id=person.id)
+        
+        for other_person in all_people:
+            relationship = self.relationship_calc.calculate_relationship(person, other_person)
+            
+            if (relationship['relationship'] == relationship_type and 
+                relationship['degree'] <= max_degree):
+                relatives.append((other_person, relationship))
+        
+        return relatives
+    
+    def get_generation(self, person: Person, generation_offset: int = 0) -> List[Person]:
+        """
+        Get all people in the same generation as the person (or offset generation).
+        
+        Args:
+            person: Reference person
+            generation_offset: Offset from person's generation (0=same, 1=children, -1=parents)
+            
+        Returns:
+            List of people in the target generation
+        """
+        generation_members = []
+        all_people = Person.objects.filter(family_tree=self.family_tree)
+        
+        for other_person in all_people:
+            relationship = self.relationship_calc.calculate_relationship(person, other_person)
+            
+            # Calculate generation difference
+            if relationship['generation_diff'] == abs(generation_offset):
+                if generation_offset == 0:  # Same generation
+                    if relationship['relationship'] in ['sibling', 'half-sibling', 'cousin', 'self']:
+                        generation_members.append(other_person)
+                elif generation_offset > 0:  # Younger generation
+                    if relationship['generation_diff'] == generation_offset:
+                        generation_members.append(other_person)
+                else:  # Older generation
+                    if relationship['generation_diff'] == abs(generation_offset):
+                        generation_members.append(other_person)
+        
+        return generation_members
+
+
+class FamilyTreeVisualizationService:
+    """
+    Service for generating family tree visualization data.
+    
+    Provides data structures optimized for different visualization layouts:
+    - Hierarchical tree layouts
+    - Circular/radial layouts
+    - Network graph layouts
+    - Timeline visualizations
     """
     
     def __init__(self, family_tree: FamilyTree):
         self.family_tree = family_tree
     
-    def search_people(
-        self, 
-        query: str = "", 
-        birth_year_range: Tuple[int, int] = None,
-        location: str = "",
-        relationship_to: Person = None,
-        limit: int = 50
-    ) -> List[Person]:
+    def generate_tree_data(self, root_person: Person, layout: str = 'hierarchical') -> Dict:
         """
-        Search for people in the family tree based on various criteria.
+        Generate tree visualization data for a specific layout.
         
         Args:
-            query: Name search query
-            birth_year_range: Tuple of (min_year, max_year)
-            location: Location filter
-            relationship_to: Find people related to this person
-            limit: Maximum number of results
+            root_person: Person to use as tree root
+            layout: Layout type ('hierarchical', 'circular', 'network')
             
         Returns:
-            List of Person objects matching the criteria
+            Dictionary with nodes, edges, and layout data
         """
-        queryset = Person.objects.filter(family_tree=self.family_tree)
-        
-        # Text search on names
-        if query:
-            queryset = queryset.filter(
-                Q(first_name__icontains=query) |
-                Q(last_name__icontains=query) |
-                Q(middle_name__icontains=query)
-            )
-        
-        # Birth year range filter
-        if birth_year_range:
-            min_year, max_year = birth_year_range
-            queryset = queryset.filter(
-                birth_date__year__gte=min_year,
-                birth_date__year__lte=max_year
-            )
-        
-        # Location filter
-        if location:
-            queryset = queryset.filter(
-                Q(birth_location__icontains=location) |
-                Q(death_location__icontains=location)
-            )
-        
-        # Relationship-based filtering
-        if relationship_to:
-            related_people = self._find_related_people(relationship_to)
-            queryset = queryset.filter(id__in=[p.id for p in related_people])
-        
-        return queryset.distinct()[:limit]
+        if layout == 'hierarchical':
+            return self._generate_hierarchical_data(root_person)
+        elif layout == 'circular':
+            return self._generate_circular_data(root_person)
+        elif layout == 'network':
+            return self._generate_network_data(root_person)
+        else:
+            raise ValueError(f"Unsupported layout type: {layout}")
     
-    def _find_related_people(self, person: Person, max_degree: int = 3) -> List[Person]:
-        """
-        Find all people related to a given person within a certain degree.
+    def _generate_hierarchical_data(self, root_person: Person) -> Dict:
+        """Generate data for hierarchical tree layout."""
+        nodes = []
+        edges = []
+        visited = set()
         
-        Args:
-            person: The person to find relatives for
-            max_degree: Maximum relationship degree to search
+        def add_person_and_descendants(person, generation=0, x_offset=0):
+            if person.id in visited:
+                return x_offset
             
-        Returns:
-            List of related Person objects
-        """
-        calculator = RelationshipCalculator(self.family_tree)
-        related_people = []
-        all_people = Person.objects.filter(family_tree=self.family_tree).exclude(id=person.id)
+            visited.add(person.id)
+            
+            # Add person node
+            node = {
+                'id': person.id,
+                'name': person.get_full_name(),
+                'x': x_offset,
+                'y': -generation * 100,  # Negative for downward tree
+                'generation': generation,
+                'data': {
+                    'birth_date': person.birth_date.isoformat() if person.birth_date else None,
+                    'death_date': person.death_date.isoformat() if person.death_date else None,
+                    'photo_url': person.photo.url if person.photo else None,
+                    'gender': person.gender
+                }
+            }
+            nodes.append(node)
+            
+            # Add children
+            children = person.children.all()
+            child_x_start = x_offset - (len(children) - 1) * 50
+            
+            for i, child in enumerate(children):
+                child_x = child_x_start + i * 100
+                add_person_and_descendants(child, generation + 1, child_x)
+                
+                # Add edge from parent to child
+                edges.append({
+                    'source': person.id,
+                    'target': child.id,
+                    'type': 'parent-child'
+                })
+            
+            return x_offset + len(children) * 100
         
-        for other_person in all_people:
-            relationship = calculator.calculate_relationship(person, other_person)
-            if relationship['degree'] <= max_degree and relationship['degree'] > 0:
-                related_people.append(other_person)
+        add_person_and_descendants(root_person)
         
-        return related_people
+        return {
+            'nodes': nodes,
+            'edges': edges,
+            'layout': 'hierarchical',
+            'root_id': root_person.id
+        }
     
-    def get_suggestions(self, query: str, limit: int = 10) -> List[str]:
-        """
-        Get search suggestions based on partial query.
+    def _generate_circular_data(self, root_person: Person) -> Dict:
+        """Generate data for circular/radial tree layout."""
+        import math
         
-        Args:
-            query: Partial search query
-            limit: Maximum number of suggestions
+        nodes = []
+        edges = []
+        visited = set()
+        
+        def add_person_circular(person, radius=0, angle=0, angle_span=2*math.pi):
+            if person.id in visited:
+                return
             
-        Returns:
-            List of suggested search terms
-        """
-        if len(query) < 2:
-            return []
+            visited.add(person.id)
+            
+            # Calculate position
+            x = radius * math.cos(angle)
+            y = radius * math.sin(angle)
+            
+            node = {
+                'id': person.id,
+                'name': person.get_full_name(),
+                'x': x,
+                'y': y,
+                'radius': radius,
+                'angle': angle,
+                'data': {
+                    'birth_date': person.birth_date.isoformat() if person.birth_date else None,
+                    'death_date': person.death_date.isoformat() if person.death_date else None,
+                    'photo_url': person.photo.url if person.photo else None,
+                    'gender': person.gender
+                }
+            }
+            nodes.append(node)
+            
+            # Add children in next ring
+            children = person.children.all()
+            if children:
+                child_angle_span = angle_span / len(children)
+                start_angle = angle - angle_span / 2
+                
+                for i, child in enumerate(children):
+                    child_angle = start_angle + i * child_angle_span + child_angle_span / 2
+                    add_person_circular(child, radius + 150, child_angle, child_angle_span)
+                    
+                    edges.append({
+                        'source': person.id,
+                        'target': child.id,
+                        'type': 'parent-child'
+                    })
         
-        # Get unique first and last names that start with the query
-        first_names = Person.objects.filter(
-            family_tree=self.family_tree,
-            first_name__istartswith=query
-        ).values_list('first_name', flat=True).distinct()
+        add_person_circular(root_person)
         
-        last_names = Person.objects.filter(
-            family_tree=self.family_tree,
-            last_name__istartswith=query
-        ).values_list('last_name', flat=True).distinct()
+        return {
+            'nodes': nodes,
+            'edges': edges,
+            'layout': 'circular',
+            'root_id': root_person.id
+        }
+    
+    def _generate_network_data(self, root_person: Person) -> Dict:
+        """Generate data for network graph layout."""
+        all_people = Person.objects.filter(family_tree=self.family_tree)
         
-        suggestions = list(set(list(first_names) + list(last_names)))
-        return sorted(suggestions)[:limit]
+        nodes = []
+        edges = []
+        
+        for person in all_people:
+            node = {
+                'id': person.id,
+                'name': person.get_full_name(),
+                'data': {
+                    'birth_date': person.birth_date.isoformat() if person.birth_date else None,
+                    'death_date': person.death_date.isoformat() if person.death_date else None,
+                    'photo_url': person.photo.url if person.photo else None,
+                    'gender': person.gender
+                }
+            }
+            nodes.append(node)
+            
+            # Add parent-child edges
+            for child in person.children.all():
+                edges.append({
+                    'source': person.id,
+                    'target': child.id,
+                    'type': 'parent-child'
+                })
+            
+            # Add spouse edges
+            if person.spouse:
+                edges.append({
+                    'source': person.id,
+                    'target': person.spouse.id,
+                    'type': 'spouse'
+                })
+        
+        return {
+            'nodes': nodes,
+            'edges': edges,
+            'layout': 'network',
+            'root_id': root_person.id
+        }
 
 
 class FamilyTreeAnalytics:
@@ -435,7 +589,6 @@ class FamilyTreeAnalytics:
     
     def _calculate_generations(self) -> int:
         """Calculate the number of generations in the tree."""
-        # This is a simplified calculation - could be enhanced
         people = Person.objects.filter(family_tree=self.family_tree)
         if not people.exists():
             return 0
@@ -480,7 +633,6 @@ class FamilyTreeAnalytics:
     
     def _count_family_units(self) -> int:
         """Count the number of family units (couples with children)."""
-        # This is a simplified calculation
         couples = Person.objects.filter(
             family_tree=self.family_tree,
             spouse__isnull=False

@@ -1,91 +1,144 @@
 #!/bin/bash
 
 # Family Tree App Development Container Setup Script
+# This script sets up the development environment inside the container
+
 set -e
 
 echo "🚀 Setting up Family Tree App development environment..."
 
-# Update system packages
-apt-get update && apt-get upgrade -y
+# Update package lists
+echo "📦 Updating package lists..."
+apt-get update
 
-# Install system dependencies
+# Install additional system dependencies
+echo "🔧 Installing system dependencies..."
 apt-get install -y \
-    build-essential \
-    libpq-dev \
-    postgresql-client \
-    git \
     curl \
     wget \
-    vim \
-    nano \
-    htop \
-    tree \
-    jq
+    git \
+    build-essential \
+    libpq-dev \
+    libssl-dev \
+    libffi-dev \
+    zlib1g-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    liblcms2-dev \
+    libwebp-dev \
+    tcl8.6-dev \
+    tk8.6-dev \
+    python3-tk \
+    gettext \
+    redis-tools \
+    postgresql-client
 
-# Install Python development tools
-pip install --upgrade pip poetry
-
-# Install project dependencies
-echo "📦 Installing Python dependencies..."
-cd /workspaces/family_tree_app
-poetry config virtualenvs.create false
-poetry install
-
-# Install additional requirements
-if [ -f "extra_requirements.txt" ]; then
-    pip install -r extra_requirements.txt
+# Install Poetry if not already installed
+if ! command -v poetry &> /dev/null; then
+    echo "📚 Installing Poetry..."
+    curl -sSL https://install.python-poetry.org | python3 -
+    export PATH="/root/.local/bin:$PATH"
 fi
 
-# Install development and testing dependencies
-pip install \
-    pytest \
-    pytest-django \
-    pytest-cov \
-    black \
-    flake8 \
-    isort \
-    mypy \
-    django-debug-toolbar \
-    factory-boy \
-    coverage
+# Configure Poetry
+echo "⚙️ Configuring Poetry..."
+poetry config virtualenvs.create true
+poetry config virtualenvs.in-project false
+poetry config virtualenvs.path /opt/poetry/venv
 
-# Create .env file from template if it doesn't exist
-if [ ! -f ".env" ]; then
+# Install Python dependencies
+echo "🐍 Installing Python dependencies..."
+cd /workspace
+poetry install --no-root
+
+# Create .env file if it doesn't exist
+if [ ! -f .env ]; then
     echo "📝 Creating .env file from template..."
     cp .env.example .env
 fi
 
 # Set up pre-commit hooks
-echo "🔧 Setting up pre-commit hooks..."
-pip install pre-commit
-pre-commit install
+echo "🪝 Setting up pre-commit hooks..."
+poetry run pre-commit install
 
-# Make manage.py executable
-chmod +x source/manage.py
+# Install Node.js dependencies if package.json exists
+if [ -f package.json ]; then
+    echo "📦 Installing Node.js dependencies..."
+    npm install
+fi
 
-# Create necessary directories
-mkdir -p source/content/media/uploads
-mkdir -p source/content/static/collected
-mkdir -p logs
-mkdir -p backups
+# Run initial database setup
+echo "🗄️ Setting up database..."
+poetry run python source/manage.py makemigrations --check --dry-run || {
+    echo "⚠️ Migrations need to be created. Run 'poetry run python source/manage.py makemigrations' manually."
+}
 
-# Set up database (if PostgreSQL is available)
-echo "🗄️  Database setup will be handled by docker-compose..."
+# Create initial superuser if needed (non-interactive)
+echo "👤 Setting up initial superuser..."
+poetry run python source/manage.py shell -c "
+from django.contrib.auth import get_user_model
+User = get_user_model()
+if not User.objects.filter(username='admin').exists():
+    User.objects.create_superuser('admin', 'admin@example.com', 'admin123')
+    print('✅ Created superuser: admin/admin123')
+else:
+    print('ℹ️ Superuser already exists')
+" || echo "⚠️ Could not create superuser automatically"
 
-# Install Node.js dependencies for frontend tools
-echo "📦 Installing Node.js dependencies..."
-npm install -g \
-    prettier \
-    eslint \
-    @tailwindcss/cli
+# Collect static files
+echo "📁 Collecting static files..."
+poetry run python source/manage.py collectstatic --noinput --clear || echo "⚠️ Could not collect static files"
 
+# Set up git configuration
+echo "🔧 Setting up git configuration..."
+git config --global init.defaultBranch main
+git config --global pull.rebase false
+git config --global user.name "DevContainer User" || true
+git config --global user.email "devcontainer@example.com" || true
+
+# Create helpful aliases
+echo "⚡ Setting up helpful aliases..."
+echo 'alias runserver="poetry run python source/manage.py runserver 0.0.0.0:8000"' >> ~/.bashrc
+echo 'alias shell="poetry run python source/manage.py shell"' >> ~/.bashrc
+echo 'alias migrate="poetry run python source/manage.py migrate"' >> ~/.bashrc
+echo 'alias makemigrations="poetry run python source/manage.py makemigrations"' >> ~/.bashrc
+echo 'alias test="poetry run pytest"' >> ~/.bashrc
+echo 'alias lint="poetry run flake8 source"' >> ~/.bashrc
+echo 'alias format="poetry run black source && poetry run isort source"' >> ~/.bashrc
+echo 'alias typecheck="poetry run mypy source"' >> ~/.bashrc
+
+# Create workspace directories
+echo "📁 Creating workspace directories..."
+mkdir -p /workspace/logs
+mkdir -p /workspace/media
+mkdir -p /workspace/static
+mkdir -p /workspace/tmp
+
+# Set permissions
+echo "🔐 Setting permissions..."
+chmod -R 755 /workspace
+chown -R vscode:vscode /workspace || true
+
+# Display helpful information
+echo ""
 echo "✅ Development environment setup complete!"
 echo ""
-echo "🎯 Next steps:"
-echo "  1. Update .env file with your configuration"
-echo "  2. Run: docker-compose up -d (for database services)"
-echo "  3. Run: python source/manage.py migrate"
-echo "  4. Run: python source/manage.py createsuperuser"
-echo "  5. Run: python source/manage.py runserver"
+echo "🎯 Quick start commands:"
+echo "  runserver       - Start Django development server"
+echo "  shell          - Open Django shell"
+echo "  migrate        - Run database migrations"
+echo "  makemigrations - Create new migrations"
+echo "  test           - Run test suite"
+echo "  lint           - Check code style"
+echo "  format         - Format code with Black and isort"
+echo "  typecheck      - Run type checking with mypy"
 echo ""
-echo "🌐 Access the application at: http://localhost:8000"
+echo "🌐 Access points:"
+echo "  Django app: http://localhost:8000"
+echo "  Admin panel: http://localhost:8000/admin (admin/admin123)"
+echo ""
+echo "📚 Documentation:"
+echo "  Project docs: /workspace/docs/"
+echo "  API docs: /workspace/docs/guides/api.md"
+echo ""
+echo "Happy coding! 🚀"
