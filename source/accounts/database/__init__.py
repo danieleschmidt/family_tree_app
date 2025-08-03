@@ -1,1 +1,1 @@
-# Database layer initialization
+# Database utilities for Family Tree Application

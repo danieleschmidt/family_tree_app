@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/workspace
+      - poetry-cache:/opt/poetry/cache
+      - poetry-venv:/opt/poetry/venv
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=app.conf.development.settings
+      - PYTHONPATH=/workspace/source
+      - DEBUG=1
+    depends_on:
+      - db
+      - redis
+    command: poetry run python source/manage.py runserver 0.0.0.0:8000
+    user: vscode
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: familytree_dev
+      POSTGRES_USER: familytree_user
+      POSTGRES_PASSWORD: familytree_password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U familytree_user -d familytree_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    environment:
+      MH_STORAGE: maildir
+      MH_MAILDIR_PATH: /tmp
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/workspace
+      - poetry-cache:/opt/poetry/cache
+      - poetry-venv:/opt/poetry/venv
+    environment:
+      - DJANGO_SETTINGS_MODULE=app.conf.development.settings
+      - PYTHONPATH=/workspace/source
+    depends_on:
+      - db
+      - redis
+    command: poetry run celery -A app worker --loglevel=info
+    user: vscode
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/workspace
+      - poetry-cache:/opt/poetry/cache
+      - poetry-venv:/opt/poetry/venv
+    environment:
+      - DJANGO_SETTINGS_MODULE=app.conf.development.settings
+      - PYTHONPATH=/workspace/source
+    depends_on:
+      - db
+      - redis
+    command: poetry run celery -A app beat --loglevel=info
+    user: vscode
+
+volumes:
+  postgres-data:
+  redis-data:
+  poetry-cache:
+  poetry-venv:

@@ -1,71 +1,93 @@
+# Pre-commit hooks configuration for Family Tree App
+# Install with: pre-commit install
+# Run on all files: pre-commit run --all-files
+
 repos:
+  # General code formatting and linting
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
       - id: trailing-whitespace
+        exclude: \.md$
       - id: end-of-file-fixer
       - id: check-yaml
-      - id: check-added-large-files
       - id: check-json
       - id: check-toml
       - id: check-xml
-      - id: debug-statements
-      - id: check-docstring-first
+      - id: check-added-large-files
+        args: ['--maxkb=5000']
+      - id: check-case-conflict
       - id: check-merge-conflict
       - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+      - id: pretty-format-json
+        args: ['--autofix', '--indent=2']
 
+  # Python-specific hooks
   - repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:
       - id: black
         language_version: python3
-        args: [--line-length=88]
+        args: ['--line-length=88']
 
   - repo: https://github.com/pycqa/isort
     rev: 5.12.0
     hooks:
       - id: isort
-        args: [--profile=black, --line-length=88]
+        args: ['--profile=black', '--line-length=88']
 
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
-        args: [--max-line-length=88, --extend-ignore=E203,W503]
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.3.0
-    hooks:
-      - id: mypy
-        additional_dependencies: [django-stubs]
-        args: [--ignore-missing-imports]
-
-  - repo: https://github.com/pycqa/bandit
+  # Security scanning
+  - repo: https://github.com/PyCQA/bandit
     rev: 1.7.5
     hooks:
       - id: bandit
-        args: [-c, pyproject.toml]
+        args: ['-r', '-ll']
+        exclude: ^tests/
 
+  # Django-specific hooks
+  - repo: https://github.com/adamchainz/django-upgrade
+    rev: 1.14.0
+    hooks:
+      - id: django-upgrade
+        args: ['--target-version=4.1']
+
+  # Documentation and template formatting
   - repo: https://github.com/djlint/djLint
     rev: v1.31.1
     hooks:
       - id: djlint-reformat-django
+        files: \.(html|htm)$
+        args: ['--indent=2', '--max-line-length=120']
       - id: djlint-django
+        files: \.(html|htm)$
 
-  - repo: local
+  # CSS and JavaScript formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.0.0
     hooks:
-      - id: django-check
-        name: Django Check
-        entry: python source/manage.py check
-        language: system
-        types: [python]
-        require_serial: true
-        pass_filenames: false
+      - id: prettier
+        files: \.(css|scss|js|ts|json|yaml|yml|md)$
+        args: ['--tab-width=2', '--print-width=100']
 
-      - id: django-migrations-check
-        name: Django Migrations Check
-        entry: python source/manage.py makemigrations --check --dry-run
-        language: system
-        types: [python]
-        require_serial: true
-        pass_filenames: false
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.5
+    hooks:
+      - id: shellcheck
+        args: ['-e', 'SC1091']
+
+# Configuration for specific tools
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false
