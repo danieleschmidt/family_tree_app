@@ -1,16 +1,127 @@
 [tool.poetry]
 name = "family-tree-app"
-version = "1.0"
-description = "A simple family tree app"
+version = "1.0.0"
+description = "A comprehensive family tree web application built with Django"
 readme = "README.md"
-authors = ["Daniel Schmidt"]
+authors = ["Daniel Schmidt <daniel@example.com>"]
 repository = "https://github.com/danieleschmidt/family_tree_app"
+license = "MIT"
+keywords = ["genealogy", "family-tree", "django", "web-application"]
 
 [tool.poetry.dependencies]
-python = ">=3.8"
-Django = ">=4.1.6"
-django-bootstrap4 = "==22.3"
+python = ">=3.8,<4.0"
+Django = ">=4.1.6,<5.0"
+django-bootstrap4 = "22.3"
+django-plotly-dash = "^2.2.0"
+plotly = "^5.15.0"
+dash = "^2.11.1"
+networkx = "^3.1"
+psycopg2-binary = "^2.9.6"
+redis = "^4.6.0"
+django-redis = "^5.3.0"
+python-decouple = "^3.8"
+Pillow = "^9.5.0"
+django-extensions = "^3.2.3"
+celery = "^5.3.1"
+django-celery-beat = "^2.5.0"
+whitenoise = "^6.5.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-django = "^4.5.2"
+pytest-cov = "^4.1.0"
+black = "^23.3.0"
+isort = "^5.12.0"
+flake8 = "^6.0.0"
+mypy = "^1.4.1"
+django-stubs = "^4.2.1"
+bandit = "^1.7.5"
+pre-commit = "^3.3.3"
+factory-boy = "^3.3.0"
+django-debug-toolbar = "^4.1.0"
+coverage = "^7.2.7"
+djlint = "^1.31.1"
 
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+dev = "python source/manage.py runserver"
+test = "pytest"
+lint = "flake8 source"
+format = "black source && isort source"
+check = "python source/manage.py check"
+migrate = "python source/manage.py migrate"
+collectstatic = "python source/manage.py collectstatic --noinput"
+
+# Black configuration
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | migrations
+)/
+'''
+
+# isort configuration
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_django = ["django"]
+known_first_party = ["accounts", "main", "app"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]
+
+# pytest configuration
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "app.conf.development.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+addopts = [
+    "--strict-markers",
+    "--reuse-db",
+    "--nomigrations",
+    "--cov=source",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-fail-under=80"
+]
+testpaths = ["tests"]
+
+# mypy configuration
+[tool.mypy]
+python_version = "3.8"
+check_untyped_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["source"]
+omit = [
+    "*/migrations/*",
+    "*/venv/*",
+    "*/env/*",
+    "*/tests/*",
+    "manage.py",
+    "*/settings/*",
+    "*/conf/*",
+]
+
+# Bandit configuration
+[tool.bandit]
+exclude_dirs = ["tests", "*/migrations/*"]
+skips = ["B101", "B601"]

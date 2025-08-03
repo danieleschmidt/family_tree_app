@@ -1,0 +1,69 @@
+{
+    "name": "Family Tree App Development",
+    "image": "python:3.9-slim",
+    
+    "features": {
+        "ghcr.io/devcontainers/features/python:1": {
+            "version": "3.9"
+        },
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "16"
+        },
+        "ghcr.io/devcontainers/features/git:1": {},
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    },
+    
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.autopep8",
+                "ms-python.flake8",
+                "ms-python.pylint",
+                "batisteo.vscode-django",
+                "ms-vscode.vscode-json",
+                "bradlc.vscode-tailwindcss",
+                "formulahendry.auto-rename-tag",
+                "esbenp.prettier-vscode"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.formatting.provider": "autopep8",
+                "python.linting.enabled": true,
+                "python.linting.pylintEnabled": true,
+                "python.linting.flake8Enabled": true,
+                "editor.formatOnSave": true,
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": true
+                }
+            }
+        }
+    },
+    
+    "forwardPorts": [8000, 5432, 6379],
+    "portsAttributes": {
+        "8000": {
+            "label": "Django Development Server",
+            "onAutoForward": "openPreview"
+        },
+        "5432": {
+            "label": "PostgreSQL Database"
+        },
+        "6379": {
+            "label": "Redis Cache"
+        }
+    },
+    
+    "postCreateCommand": "bash .devcontainer/setup.sh",
+    
+    "containerEnv": {
+        "DJANGO_SETTINGS_MODULE": "app.conf.development.settings",
+        "PYTHONPATH": "/workspaces/family_tree_app/source"
+    },
+    
+    "mounts": [
+        "source=${localWorkspaceFolder}/.vscode,target=/workspaces/family_tree_app/.vscode,type=bind,consistency=cached"
+    ],
+    
+    "workspaceFolder": "/workspaces/family_tree_app"
+}
