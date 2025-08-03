@@ -14,6 +14,7 @@ urlpatterns = [
     path('language/', ChangeLanguageView.as_view(), name='change_language'),
 
     path('accounts/', include('accounts.urls')),
+    path('api/', include('accounts.api_urls')),
 ]
 
 if settings.DEBUG:
